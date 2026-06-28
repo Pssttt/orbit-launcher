@@ -61,7 +61,7 @@
             android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_settings" />
         <TextView android:id="@+id/btnWifi" style="@style/SettingsItem" android:text="@string/wifi_settings"
             android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_wifi" />
-        <TextView android:id="@+id/btnDisplay" style="@style/SettingsItem" android:text="@string/display_settings"
-            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_display" />
+        <TextView android:id="@+id/btnSound" style="@style/SettingsItem" android:text="@string/sound_settings"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_sound" />
     </LinearLayout>
 </ScrollView>

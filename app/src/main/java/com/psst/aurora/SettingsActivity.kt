@@ -71,7 +71,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnCheckUpdates.setOnClickListener { Updater.promptIfAvailable(this, manual = true) }
         binding.btnAndroidSettings.setOnClickListener { openSystem(android.provider.Settings.ACTION_SETTINGS) }
         binding.btnWifi.setOnClickListener { openSystem(android.provider.Settings.ACTION_WIFI_SETTINGS) }
-        binding.btnDisplay.setOnClickListener { openSystem(android.provider.Settings.ACTION_DISPLAY_SETTINGS) }
+        binding.btnSound.setOnClickListener { openSystem(android.provider.Settings.ACTION_SOUND_SETTINGS) }
 
         binding.btnAccent.requestFocus()
     }
