@@ -2,12 +2,17 @@ package com.psst.aurora
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.PorterDuff
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -16,7 +21,12 @@ import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -272,40 +282,74 @@ class LauncherActivity : AppCompatActivity() {
             .onFailure { toast("Can't resume ${item.title}") }
     }
 
+    private data class MenuAction(val icon: Int, val label: String, val run: () -> Unit)
+
     private fun showAppMenu(app: AppEntry) {
+        val accent = config.resolveAccent(app.accent)
+        val density = resources.displayMetrics.density
+        val dialog = Dialog(this)
+
         val favLabel = if (config.isFavorite(app.packageName)) "Remove from favorites" else "Add to favorites"
-        val options = arrayOf(
-            favLabel,
-            "Move left",
-            "Move right",
-            getString(R.string.set_icon),
-            getString(R.string.reset_icon),
-            getString(R.string.move_category),
-            getString(R.string.hide_app),
-            getString(R.string.clear_memory),
-            getString(R.string.uninstall),
-            "App info",
-            getString(R.string.settings)
+        val actions = listOf(
+            MenuAction(R.drawable.ic_star, favLabel) { config.toggleFavorite(app.packageName); loadAndRender(false) },
+            MenuAction(R.drawable.ic_chevron_left, "Move left") { moveApp(app, -1) },
+            MenuAction(R.drawable.ic_chevron_right, "Move right") { moveApp(app, +1) },
+            MenuAction(R.drawable.ic_image, getString(R.string.set_icon)) { pendingIconPkg = app.packageName; pickIcon.launch("image/*") },
+            MenuAction(R.drawable.ic_refresh, getString(R.string.reset_icon)) { config.clearCustomIcon(app.packageName); loadAndRender(false) },
+            MenuAction(R.drawable.ic_label, getString(R.string.move_category)) { chooseCategory(app) },
+            MenuAction(R.drawable.ic_visibility_off, getString(R.string.hide_app)) { config.setHidden(app.packageName, true); loadAndRender(false) },
+            MenuAction(R.drawable.ic_memory, getString(R.string.clear_memory)) { clearFromMemory(app) },
+            MenuAction(R.drawable.ic_delete, getString(R.string.uninstall)) { uninstallApp(app.packageName) },
+            MenuAction(R.drawable.ic_info, "App info") { openAppInfo(app.packageName) },
+            MenuAction(R.drawable.ic_settings, getString(R.string.settings)) { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
-        AlertDialog.Builder(this)
-            .setTitle(app.label)
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> { config.toggleFavorite(app.packageName); loadAndRender(false) }
-                    1 -> moveApp(app, -1)
-                    2 -> moveApp(app, +1)
-                    3 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
-                    4 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
-                    5 -> chooseCategory(app)
-                    6 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
-                    7 -> clearFromMemory(app)
-                    8 -> uninstallApp(app.packageName)
-                    9 -> openAppInfo(app.packageName)
-                    10 -> startActivity(Intent(this, SettingsActivity::class.java))
+
+        val panel = layoutInflater.inflate(R.layout.dialog_app_menu, null)
+        panel.findViewById<TextView>(R.id.menuTitle).text = app.label
+        val rows = panel.findViewById<LinearLayout>(R.id.menuRows)
+        val accentTint = ColorStateList.valueOf(accent)
+        actions.forEach { a ->
+            val row = layoutInflater.inflate(R.layout.item_app_menu_row, rows, false)
+            row.findViewById<ImageView>(R.id.rowIcon).apply { setImageResource(a.icon); imageTintList = accentTint }
+            row.findViewById<TextView>(R.id.rowLabel).text = a.label
+            row.setOnClickListener { dialog.dismiss(); a.run() }
+            row.setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.background = menuRowFocusBg(accent, density)
+                    v.animate().translationX(8f * density).setDuration(160).start()
+                } else {
+                    v.background = null
+                    v.animate().translationX(0f).setDuration(160).start()
                 }
             }
-            .show()
+            rows.addView(row)
+        }
+
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(panel)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout((380 * density).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+            setDimAmount(0.6f)
+        }
+        // cap height so long menus scroll instead of running off-screen
+        val maxH = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+        val scroll = panel.findViewById<View>(R.id.menuScroll)
+        scroll.post {
+            if (scroll.height > maxH) { scroll.layoutParams = scroll.layoutParams.also { it.height = maxH } }
+        }
+        dialog.show()
+        rows.getChildAt(0)?.requestFocus()
+        panel.alpha = 0f; panel.scaleX = 0.94f; panel.scaleY = 0.94f
+        panel.animate().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(220).setInterpolator(DecelerateInterpolator()).start()
     }
+
+    private fun menuRowFocusBg(accent: Int, density: Float): GradientDrawable =
+        GradientDrawable().apply {
+            cornerRadius = 12f * density
+            setColor((accent and 0x00FFFFFF) or (0x40 shl 24))   // accent at ~25% alpha
+        }
 
     private fun clearFromMemory(app: AppEntry) {
         runCatching {
