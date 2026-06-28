@@ -202,6 +202,12 @@ class ConfigStore(context: Context) {
         return true
     }
 
+    /** Persist an explicit favorites order (used by in-place rearrange). */
+    fun setFavoritesOrder(order: List<String>) { favorites.clear(); favorites.addAll(order); save() }
+
+    /** Persist an explicit app order within a category (used by in-place rearrange). */
+    fun setAppOrder(category: String, order: List<String>) { appOrder[category] = order.toMutableList(); save() }
+
     // appearance
     fun resolveAccent(appAccent: Int): Int = if (globalAccent != 0) globalAccent else appAccent
     fun setClock24(v: Boolean) { clock24 = v; save() }

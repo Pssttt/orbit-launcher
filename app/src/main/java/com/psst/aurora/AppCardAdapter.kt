@@ -12,12 +12,24 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class AppCardAdapter(
-    private val apps: List<AppEntry>,
+    apps: List<AppEntry>,
     private val config: ConfigStore,
     private val onClick: (AppEntry) -> Unit,
     private val onLongClick: (AppEntry) -> Unit,
     private val onFocus: (AppEntry, View, Boolean) -> Unit
 ) : RecyclerView.Adapter<AppCardAdapter.VH>() {
+
+    private val apps = apps.toMutableList()
+
+    fun indexOfPackage(pkg: String) = apps.indexOfFirst { it.packageName == pkg }
+    fun packageOrder(): List<String> = apps.map { it.packageName }
+
+    /** Move a card in place (keeps the view + its focus) and animate it. */
+    fun moveItem(from: Int, to: Int) {
+        if (from !in apps.indices || to !in apps.indices || from == to) return
+        apps.add(to, apps.removeAt(from))
+        notifyItemMoved(from, to)
+    }
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
         val banner: ImageView = view.findViewById(R.id.banner)

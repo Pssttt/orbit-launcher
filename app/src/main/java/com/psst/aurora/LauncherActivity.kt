@@ -234,6 +234,22 @@ class LauncherActivity : AppCompatActivity() {
         return null
     }
 
+    /** Find a card by package within a specific named row (handles apps present in several rows). */
+    private fun findCardInRow(rowName: String, pkg: String): View? {
+        val list = binding.categoryList
+        for (i in 0 until list.childCount) {
+            val rowView = list.getChildAt(i)
+            val title = rowView.findViewById<TextView>(R.id.categoryTitle)?.text?.toString()
+            if (!title.equals(rowName, ignoreCase = true)) continue
+            val rv = rowView.findViewById<RecyclerView>(R.id.appRow) ?: continue
+            for (j in 0 until rv.childCount) {
+                val card = rv.getChildAt(j)
+                if (card.tag == pkg) return card
+            }
+        }
+        return null
+    }
+
     private fun buildRows(apps: List<AppEntry>, watch: List<WatchItem>): List<HomeRow> {
         val visible = apps.filterNot { config.isHidden(it.packageName) }
         val byPkg = visible.associateBy { it.packageName }
@@ -396,21 +412,30 @@ class LauncherActivity : AppCompatActivity() {
         }.onFailure { toast("Can't uninstall") }
     }
 
-    /** Reorder [app] by [delta] within whichever row it was invoked from. */
-    private fun moveApp(app: AppEntry, delta: Int, rowName: String) {
-        val moved = if (rowName == FAVORITES_ROW) {
-            config.moveFavorite(app.packageName, delta)
+    /**
+     * Move the focused card by [delta] in place (no full re-render, so focus never escapes to
+     * the header) and persist the new order. Operates on the actually-focused card's row, so it
+     * works even when the same app is in both Favorites and a category.
+     */
+    private fun reorderStep(delta: Int) {
+        val pkg = reorderPkg ?: return
+        val row = reorderRow ?: return
+        val card = findCardInRow(row, pkg) ?: return
+        val rv = card.parent as? RecyclerView ?: return
+        val adapter = rv.adapter as? AppCardAdapter ?: return
+        val from = adapter.indexOfPackage(pkg)
+        val to = from + delta
+        if (from < 0 || to !in 0 until adapter.itemCount) return
+        adapter.moveItem(from, to)
+        val order = adapter.packageOrder()
+        if (row == FAVORITES_ROW) {
+            config.setFavoritesOrder(order)
         } else {
-            val cat = config.categoryOverrideOf(app.packageName) ?: app.defaultCategory
-            val pkgs = (cachedApps ?: emptyList())
-                .filterNot { config.isHidden(it.packageName) }
-                .filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == cat }
-                .let { sortInCategory(cat, it) }
-                .map { it.packageName }
-            config.moveAppWithin(cat, pkgs, app.packageName, delta)
+            val app = cachedApps?.firstOrNull { it.packageName == pkg } ?: return
+            config.setAppOrder(config.categoryOverrideOf(pkg) ?: app.defaultCategory, order)
         }
-        // re-render restores focus to lastFocusedPkg (the moving card), so it follows the move
-        if (moved) loadAndRender(false)
+        // keep focus on the card that moved (find it again at its new position)
+        rv.post { findCardInRow(row, pkg)?.requestFocus(); CoverFlow.transform(rv) }
     }
 
     // ---------- rearrange mode ----------
@@ -423,7 +448,8 @@ class LauncherActivity : AppCompatActivity() {
         reorderRow = rowName
         lastFocusedPkg = app.packageName
         binding.appTitle.text = getString(R.string.rearranging_hint)
-        restoreFocus()
+        // focus the exact card in this row (deterministic; the dialog dismiss may not restore it)
+        binding.root.postDelayed({ findCardInRow(rowName, app.packageName)?.requestFocus() }, 60)
         toast("Move with left / right, OK to finish")
     }
 
@@ -545,11 +571,9 @@ class LauncherActivity : AppCompatActivity() {
         val rp = reorderPkg
         if (rp != null && isReorderKey(event.keyCode)) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                val app = cachedApps?.firstOrNull { it.packageName == rp }
-                val rowName = reorderRow ?: ""
                 when (event.keyCode) {
-                    KeyEvent.KEYCODE_DPAD_LEFT -> app?.let { moveApp(it, -1, rowName) }
-                    KeyEvent.KEYCODE_DPAD_RIGHT -> app?.let { moveApp(it, +1, rowName) }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> reorderStep(-1)
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> reorderStep(+1)
                     else -> exitReorder()   // OK / BACK / UP / DOWN finish rearranging
                 }
             }
