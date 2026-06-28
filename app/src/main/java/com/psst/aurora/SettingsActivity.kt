@@ -64,8 +64,42 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnResetWallpaper.setOnClickListener { config.setWallpaper(null); toast("Wallpaper reset") }
         binding.btnManageApps.setOnClickListener { startActivity(Intent(this, ManageAppsActivity::class.java)) }
         binding.btnCategories.setOnClickListener { startActivity(Intent(this, CategoriesActivity::class.java)) }
+        binding.btnFreeMemory.setOnClickListener { freeMemory() }
+        binding.btnScreensaver.setOnClickListener {
+            pick("Screensaver", arrayOf("On (after 3 min idle)", "Off")) { config.setScreensaver(it == 0) }
+        }
+        binding.btnCheckUpdates.setOnClickListener { Updater.promptIfAvailable(this, manual = true) }
+        binding.btnAndroidSettings.setOnClickListener { openSystem(android.provider.Settings.ACTION_SETTINGS) }
+        binding.btnWifi.setOnClickListener { openSystem(android.provider.Settings.ACTION_WIFI_SETTINGS) }
+        binding.btnSound.setOnClickListener { openSystem(android.provider.Settings.ACTION_SOUND_SETTINGS) }
 
         binding.btnAccent.requestFocus()
+    }
+
+    private fun openSystem(action: String) {
+        val fallback = android.provider.Settings.ACTION_SETTINGS
+        runCatching { startActivity(Intent(action)) }
+            .recoverCatching { startActivity(Intent(fallback)) }
+            .onFailure { toast("Can't open settings") }
+    }
+
+    private fun freeMemory() {
+        lifecycleScope.launch {
+            val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+            val freedMb = withContext(Dispatchers.IO) {
+                val before = availMem(am)
+                val apps = AppRepository(this@SettingsActivity).loadApps()
+                apps.forEach { runCatching { am.killBackgroundProcesses(it.packageName) } }
+                ((availMem(am) - before) / (1024 * 1024)).coerceAtLeast(0)
+            }
+            toast(if (freedMb > 0) "Freed ${freedMb} MB" else "Memory cleared")
+        }
+    }
+
+    private fun availMem(am: android.app.ActivityManager): Long {
+        val mi = android.app.ActivityManager.MemoryInfo()
+        am.getMemoryInfo(mi)
+        return mi.availMem
     }
 
     private fun pick(title: String, items: Array<String>, onPick: (Int) -> Unit) {

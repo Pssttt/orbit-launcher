@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_base">
@@ -25,7 +26,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingTop="36dp"
+        android:paddingTop="20dp"
         android:paddingBottom="8dp">
 
         <LinearLayout
@@ -48,37 +49,31 @@
                 android:letterSpacing="0.25"
                 android:fontFamily="sans-serif-medium" />
 
-            <TextView
+            <ImageView
                 android:id="@+id/searchChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:layout_marginEnd="12dp"
                 android:background="@drawable/chip_bg"
                 android:focusable="true"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:paddingTop="9dp"
-                android:paddingBottom="9dp"
-                android:text="@string/search"
-                android:textColor="@color/chip_text"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+                android:padding="11dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_search"
+                app:tint="@color/chip_text"
+                android:contentDescription="@string/search" />
 
-            <TextView
+            <ImageView
                 android:id="@+id/settingsChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:layout_marginEnd="20dp"
                 android:background="@drawable/chip_bg"
                 android:focusable="true"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:paddingTop="9dp"
-                android:paddingBottom="9dp"
-                android:text="@string/settings"
-                android:textColor="@color/chip_text"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+                android:padding="11dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/chip_text"
+                android:contentDescription="@string/settings" />
 
             <TextView
                 android:id="@+id/clock"
@@ -104,8 +99,48 @@
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:clipChildren="false"
-            android:paddingTop="6dp"
+            android:paddingTop="44dp"
             android:paddingBottom="24dp"
             android:descendantFocusability="afterDescendants" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/emptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="No apps found"
+        android:textColor="@color/text_secondary"
+        android:textSize="18sp"
+        android:fontFamily="sans-serif"
+        android:visibility="gone" />
+
+    <!-- Ambient screensaver overlay (fades in after idle, dismissed by any key) -->
+    <LinearLayout
+        android:id="@+id/screensaver"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#D8000000"
+        android:alpha="0"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/saverClock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="96sp"
+            android:fontFamily="sans-serif-thin" />
+
+        <TextView
+            android:id="@+id/saverDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="22sp"
+            android:fontFamily="sans-serif-light" />
     </LinearLayout>
 </FrameLayout>

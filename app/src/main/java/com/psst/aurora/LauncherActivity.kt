@@ -1,19 +1,32 @@
 package com.psst.aurora
 
 import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
+import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.PorterDuff
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -35,11 +48,16 @@ class LauncherActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLauncherBinding
     private lateinit var config: ConfigStore
     private lateinit var repo: AppRepository
+    private lateinit var watchRepo: WatchNextRepository
 
     private var pendingIconPkg: String? = null
     private var cachedApps: List<AppEntry>? = null
     private var appliedWallpaper: String? = "__none__"
     private var createdFontScale = 1.0f
+
+    private val idleHandler = Handler(Looper.getMainLooper())
+    private val showSaver = Runnable { showScreensaver() }
+    private val idleTimeoutMs = 180_000L
 
     override fun attachBaseContext(newBase: Context) {
         val fs = ConfigStore(newBase).fontScale
@@ -68,6 +86,7 @@ class LauncherActivity : AppCompatActivity() {
 
         config = ConfigStore(this)
         repo = AppRepository(this)
+        watchRepo = WatchNextRepository(this)
         createdFontScale = config.fontScale
 
         binding.categoryList.layoutManager = LinearLayoutManager(this)
@@ -84,6 +103,14 @@ class LauncherActivity : AppCompatActivity() {
         startKenBurns()
         registerPkgReceiver()
         loadAndRender(animate = true)
+        maybeCheckForUpdates()
+    }
+
+    private fun maybeCheckForUpdates() {
+        val now = System.currentTimeMillis()
+        if (now - config.lastUpdateCheck < 12 * 3600_000L) return
+        config.setLastUpdateCheck(now)
+        Updater.promptIfAvailable(this, manual = false)
     }
 
     override fun onResume() {
@@ -94,11 +121,53 @@ class LauncherActivity : AppCompatActivity() {
         binding.root.setBackgroundColor(config.baseColor)
         applyWallpaper()
         loadAndRender(animate = false)   // cheap (cached) — refreshes recents/settings
+        resetIdle()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        idleHandler.removeCallbacks(showSaver)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        idleHandler.removeCallbacks(showSaver)
         runCatching { unregisterReceiver(pkgReceiver) }
+    }
+
+    // ---------- screensaver ----------
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        resetIdle()
+    }
+
+    private fun resetIdle() {
+        idleHandler.removeCallbacks(showSaver)
+        if (binding.screensaver.visibility == View.VISIBLE) hideScreensaver()
+        if (config.screensaver) idleHandler.postDelayed(showSaver, idleTimeoutMs)
+    }
+
+    private fun showScreensaver() {
+        updateSaverClock()
+        binding.screensaver.apply {
+            alpha = 0f
+            visibility = View.VISIBLE
+            animate().alpha(1f).setDuration(900).start()
+        }
+    }
+
+    private fun hideScreensaver() {
+        binding.screensaver.animate().alpha(0f).setDuration(300).withEndAction {
+            binding.screensaver.visibility = View.GONE
+        }.start()
+    }
+
+    private fun updateSaverClock() {
+        val now = Date()
+        val tf = SimpleDateFormat(if (config.clock24) "HH:mm" else "h:mm", Locale.getDefault())
+        binding.saverClock.text = tf.format(now)
+        binding.saverDate.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now)
     }
 
     private fun registerPkgReceiver() {
@@ -116,9 +185,14 @@ class LauncherActivity : AppCompatActivity() {
     private fun loadAndRender(animate: Boolean) {
         lifecycleScope.launch {
             val apps = withContext(Dispatchers.IO) { cachedApps ?: repo.loadApps().also { cachedApps = it } }
-            val categories = buildCategories(apps)
-            binding.categoryList.adapter =
-                CategoryAdapter(categories, config, ::launchApp, ::showAppMenu, ::onCardFocus)
+            val watch = withContext(Dispatchers.IO) { watchRepo.load() }
+            val rows = buildRows(apps, watch)
+            binding.emptyState.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+            binding.categoryList.adapter = CategoryAdapter(
+                rows, config, ::launchApp, ::showAppMenu, ::onCardFocus,
+                ::launchWatch, ::onWatchFocus, lifecycleScope
+            )
+            binding.categoryList.scrollToPosition(0)   // keep top row clear of the header after re-render
             if (animate) {
                 binding.categoryList.layoutAnimation =
                     AnimationUtils.loadLayoutAnimation(this@LauncherActivity, R.anim.layout_stagger)
@@ -128,29 +202,56 @@ class LauncherActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildCategories(apps: List<AppEntry>): List<Category> {
+    private fun buildRows(apps: List<AppEntry>, watch: List<WatchItem>): List<HomeRow> {
         val visible = apps.filterNot { config.isHidden(it.packageName) }
         val byPkg = visible.associateBy { it.packageName }
-        val result = mutableListOf<Category>()
+        val result = mutableListOf<HomeRow>()
+
+        val watchItems = watch.map { item ->
+            val app = byPkg[item.packageName]
+            item.copy(accent = config.resolveAccent(app?.accent ?: 0))
+        }
+        if (watchItems.isNotEmpty()) result.add(HomeRow.Watch(getString(R.string.continue_watching), watchItems))
+
+        val favs = config.favoritePackages().mapNotNull { byPkg[it] }
+        if (favs.isNotEmpty()) result.add(HomeRow.Apps(Category("Favorites", favs)))
 
         val recents = config.recentPackages().mapNotNull { byPkg[it] }
-        if (recents.isNotEmpty()) result.add(Category(getString(R.string.recent), recents))
+        if (recents.isNotEmpty()) result.add(HomeRow.Apps(Category(getString(R.string.recent), recents)))
 
-        val grouped = visible.groupBy { config.categoryFor(it.packageName) }
+        val grouped = visible.groupBy { config.categoryOverrideOf(it.packageName) ?: it.defaultCategory }
         val order = LinkedHashSet<String>().apply {
             addAll(config.categoryOrder())
             addAll(grouped.keys.sorted())
         }
         order.forEach { name ->
-            grouped[name]?.takeIf { it.isNotEmpty() }?.let { result.add(Category(name, it)) }
+            grouped[name]?.takeIf { it.isNotEmpty() }
+                ?.let { result.add(HomeRow.Apps(Category(name, sortInCategory(name, it)))) }
         }
         return result
+    }
+
+    private fun sortInCategory(category: String, apps: List<AppEntry>): List<AppEntry> {
+        val ord = config.appOrderFor(category)
+        return apps.sortedWith(
+            compareBy(
+                { val i = ord.indexOf(it.packageName); if (i < 0) Int.MAX_VALUE else i },
+                { it.label.lowercase() }
+            )
+        )
     }
 
     // ---------- reactive glow + parallax ----------
 
     private fun onCardFocus(app: AppEntry, card: View, hasFocus: Boolean) {
-        if (!hasFocus) return
+        if (hasFocus) applyGlow(config.resolveAccent(app.accent), card)
+    }
+
+    private fun onWatchFocus(accent: Int, card: View, hasFocus: Boolean) {
+        if (hasFocus) applyGlow(accent, card)
+    }
+
+    private fun applyGlow(accent: Int, card: View) {
         val root = binding.root
         val loc = IntArray(2); card.getLocationInWindow(loc)
         val rootLoc = IntArray(2); root.getLocationInWindow(rootLoc)
@@ -159,7 +260,7 @@ class LauncherActivity : AppCompatActivity() {
 
         val glow = binding.ambientGlow
         val gw = if (glow.width > 0) glow.width else (760 * resources.displayMetrics.density).toInt()
-        glow.setColorFilter(config.accentFor(app.packageName), PorterDuff.Mode.SRC_IN)
+        glow.setColorFilter(accent, PorterDuff.Mode.SRC_IN)
         glow.animate().x(cx - gw / 2f).y(cy - gw / 2f).alpha(0.45f).setDuration(280).start()
 
         val dx = cx - root.width / 2f
@@ -175,28 +276,100 @@ class LauncherActivity : AppCompatActivity() {
         runCatching { startActivity(app.launchIntent) }.onFailure { toast("Can't open ${app.label}") }
     }
 
+    private fun launchWatch(item: WatchItem) {
+        if (item.packageName.isNotEmpty()) config.recordLaunch(item.packageName)
+        runCatching { startActivity(item.launchIntent) }
+            .onFailure { toast("Can't resume ${item.title}") }
+    }
+
+    private data class MenuAction(val icon: Int, val label: String, val run: () -> Unit)
+
     private fun showAppMenu(app: AppEntry) {
-        val options = arrayOf(
-            getString(R.string.set_icon),
-            getString(R.string.reset_icon),
-            getString(R.string.move_category),
-            getString(R.string.hide_app),
-            "App info",
-            getString(R.string.settings)
+        val accent = config.resolveAccent(app.accent)
+        val density = resources.displayMetrics.density
+        val dialog = Dialog(this)
+
+        val favLabel = if (config.isFavorite(app.packageName)) "Remove from favorites" else "Add to favorites"
+        val actions = listOf(
+            MenuAction(R.drawable.ic_star, favLabel) { config.toggleFavorite(app.packageName); loadAndRender(false) },
+            MenuAction(R.drawable.ic_chevron_left, "Move left") { moveApp(app, -1) },
+            MenuAction(R.drawable.ic_chevron_right, "Move right") { moveApp(app, +1) },
+            MenuAction(R.drawable.ic_image, getString(R.string.set_icon)) { pendingIconPkg = app.packageName; pickIcon.launch("image/*") },
+            MenuAction(R.drawable.ic_refresh, getString(R.string.reset_icon)) { config.clearCustomIcon(app.packageName); loadAndRender(false) },
+            MenuAction(R.drawable.ic_label, getString(R.string.move_category)) { chooseCategory(app) },
+            MenuAction(R.drawable.ic_visibility_off, getString(R.string.hide_app)) { config.setHidden(app.packageName, true); loadAndRender(false) },
+            MenuAction(R.drawable.ic_memory, getString(R.string.clear_memory)) { clearFromMemory(app) },
+            MenuAction(R.drawable.ic_delete, getString(R.string.uninstall)) { uninstallApp(app.packageName) },
+            MenuAction(R.drawable.ic_info, "App info") { openAppInfo(app.packageName) },
+            MenuAction(R.drawable.ic_settings, getString(R.string.settings)) { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
-        AlertDialog.Builder(this)
-            .setTitle(app.label)
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
-                    1 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
-                    2 -> chooseCategory(app)
-                    3 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
-                    4 -> openAppInfo(app.packageName)
-                    5 -> startActivity(Intent(this, SettingsActivity::class.java))
-                }
+
+        val panel = layoutInflater.inflate(R.layout.dialog_app_menu, null)
+        panel.findViewById<TextView>(R.id.menuTitle).text = app.label
+        val rows = panel.findViewById<LinearLayout>(R.id.menuRows)
+        val accentTint = ColorStateList.valueOf(accent)
+        actions.forEach { a ->
+            val row = layoutInflater.inflate(R.layout.item_app_menu_row, rows, false)
+            row.findViewById<ImageView>(R.id.rowIcon).apply { setImageResource(a.icon); imageTintList = accentTint }
+            row.findViewById<TextView>(R.id.rowLabel).text = a.label
+            row.setOnClickListener { dialog.dismiss(); a.run() }
+            row.setOnFocusChangeListener { v, hasFocus ->
+                // No translationX: shifting the row pushes its highlight past the scroll
+                // clip and squares off the right corners. Fill-only keeps all corners round.
+                v.background = if (hasFocus) menuRowFocusBg(accent, density) else null
             }
-            .show()
+            rows.addView(row)
+        }
+
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(panel)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout((380 * density).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
+            setDimAmount(0.6f)
+        }
+        // cap height so long menus scroll instead of running off-screen
+        val maxH = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+        val scroll = panel.findViewById<View>(R.id.menuScroll)
+        scroll.post {
+            if (scroll.height > maxH) { scroll.layoutParams = scroll.layoutParams.also { it.height = maxH } }
+        }
+        dialog.show()
+        rows.getChildAt(0)?.requestFocus()
+        panel.alpha = 0f; panel.scaleX = 0.94f; panel.scaleY = 0.94f
+        panel.animate().alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(220).setInterpolator(DecelerateInterpolator()).start()
+    }
+
+    private fun menuRowFocusBg(accent: Int, density: Float): GradientDrawable =
+        GradientDrawable().apply {
+            cornerRadius = 12f * density
+            setColor((accent and 0x00FFFFFF) or (0x40 shl 24))   // accent at ~25% alpha
+        }
+
+    private fun clearFromMemory(app: AppEntry) {
+        runCatching {
+            (getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager)
+                .killBackgroundProcesses(app.packageName)
+        }
+        toast("Cleared ${app.label} from memory")
+    }
+
+    private fun uninstallApp(pkg: String) {
+        runCatching {
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")))
+        }.onFailure { toast("Can't uninstall") }
+    }
+
+    private fun moveApp(app: AppEntry, delta: Int) {
+        val cat = config.categoryOverrideOf(app.packageName) ?: app.defaultCategory
+        val pkgs = (cachedApps ?: emptyList())
+            .filterNot { config.isHidden(it.packageName) }
+            .filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == cat }
+            .let { sortInCategory(cat, it) }
+            .map { it.packageName }
+        if (config.moveAppWithin(cat, pkgs, app.packageName, delta)) loadAndRender(false)
+        else toast(if (delta < 0) "Already first" else "Already last")
     }
 
     private fun chooseCategory(app: AppEntry) {
@@ -288,6 +461,7 @@ class LauncherActivity : AppCompatActivity() {
                     val tf = SimpleDateFormat(if (config.clock24) "HH:mm" else "h:mm a", Locale.getDefault())
                     binding.clock.text = tf.format(now)
                     binding.date.text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now)
+                    if (binding.screensaver.visibility == View.VISIBLE) updateSaverClock()
                 } else {
                     binding.clock.visibility = View.GONE
                     binding.date.visibility = View.GONE
@@ -297,6 +471,19 @@ class LauncherActivity : AppCompatActivity() {
         }
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (binding.screensaver.visibility == View.VISIBLE) {
+            if (event.action == KeyEvent.ACTION_DOWN) resetIdle()  // dismiss + restart timer
+            val passThrough = when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN,
+                KeyEvent.KEYCODE_VOLUME_MUTE, KeyEvent.KEYCODE_POWER -> true
+                else -> false
+            }
+            if (!passThrough) return true  // swallow nav keys so they only dismiss
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             startActivity(Intent(this, SettingsActivity::class.java)); return true
@@ -304,6 +491,7 @@ class LauncherActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    @SuppressLint("MissingSuperCall")
     @Deprecated("Home launcher: BACK should stay on home")
     override fun onBackPressed() { /* stay on home */ }
 

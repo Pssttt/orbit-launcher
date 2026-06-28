@@ -43,7 +43,13 @@ class AppRepository(private val context: Context) {
         val label = runCatching { ri.loadLabel(pm).toString() }.getOrDefault(pkg)
         val banner = runCatching { ri.activityInfo.loadBanner(pm) }.getOrNull()
         val icon = runCatching { ri.loadIcon(pm) }.getOrNull()
+        val accent = AccentColors.accentFor(pkg, icon)
+        val appInfoCat =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                runCatching { ri.activityInfo.applicationInfo.category }.getOrDefault(-1)
+            else -1   // ApplicationInfo.category (and CATEGORY_UNDEFINED) require API 26
+        val category = DefaultCategories.brandCategory(pkg) ?: DefaultCategories.fromAppInfo(appInfoCat)
 
-        map[pkg] = AppEntry(pkg, label, launch, banner, icon)
+        map[pkg] = AppEntry(pkg, label, launch, banner, icon, accent, category)
     }
 }

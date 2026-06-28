@@ -9,7 +9,9 @@ data class AppEntry(
     val label: String,
     val launchIntent: Intent,
     val systemBanner: Drawable?,
-    val systemIcon: Drawable?
+    val systemIcon: Drawable?,
+    val accent: Int,            // brand color, else extracted from the icon
+    val defaultCategory: String // brand mapping, else from ApplicationInfo.category
 )
 
 /** A named row of apps on the home screen. */

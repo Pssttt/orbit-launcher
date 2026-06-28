@@ -48,7 +48,7 @@ class AppCardAdapter(
         resetTransforms(holder)
         holder.itemView.setBackgroundResource(R.drawable.card_bg)   // reset recycled glass
 
-        val accent = config.accentFor(app.packageName)
+        val accent = config.resolveAccent(app.accent)
         val density = holder.itemView.resources.displayMetrics.density
 
         // configurable card size
@@ -102,8 +102,7 @@ class AppCardAdapter(
                 else fallback(holder, app)
             }
             bundled != null -> { holder.banner.setImageResource(bundled); showBanner(holder) }
-            app.systemBanner != null -> { holder.banner.setImageDrawable(app.systemBanner); showBanner(holder) }
-            else -> fallback(holder, app)
+            else -> { holder.banner.setImageBitmap(BannerFactory.get(app)); showBanner(holder) }
         }
     }
 
