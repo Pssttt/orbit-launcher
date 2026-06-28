@@ -1,6 +1,7 @@
 package com.psst.aurora
 
 import android.animation.ObjectAnimator
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -304,6 +305,7 @@ class LauncherActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    @SuppressLint("MissingSuperCall")
     @Deprecated("Home launcher: BACK should stay on home")
     override fun onBackPressed() { /* stay on home */ }
 
