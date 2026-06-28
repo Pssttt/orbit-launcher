@@ -11,8 +11,8 @@ android {
         applicationId = "com.psst.orbit"
         minSdk = 21
         targetSdk = 34
-        versionCode = 14
-        versionName = "0.10.2"
+        versionCode = 15
+        versionName = "0.10.3"
     }
 
     signingConfigs {
