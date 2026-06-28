@@ -259,9 +259,10 @@ class LauncherActivity : AppCompatActivity() {
         val cy = (loc[1] - rootLoc[1]) + card.height / 2f
 
         val glow = binding.ambientGlow
-        val gw = if (glow.width > 0) glow.width else (760 * resources.displayMetrics.density).toInt()
+        val gw = if (glow.width > 0) glow.width else (1200 * resources.displayMetrics.density).toInt()
         glow.setColorFilter(accent, PorterDuff.Mode.SRC_IN)
-        glow.animate().x(cx - gw / 2f).y(cy - gw / 2f).alpha(0.45f).setDuration(280).start()
+        // large, soft, low-alpha glow: broad ambiance, no visible light/dark edge near the clock
+        glow.animate().x(cx - gw / 2f).y(cy - gw / 2f).alpha(0.30f).setDuration(280).start()
 
         val dx = cx - root.width / 2f
         val dy = cy - root.height / 2f

@@ -16,8 +16,8 @@
     <!-- Reactive ambient glow that follows focus and takes the app's accent color -->
     <ImageView
         android:id="@+id/ambientGlow"
-        android:layout_width="760dp"
-        android:layout_height="760dp"
+        android:layout_width="1200dp"
+        android:layout_height="1200dp"
         android:src="@drawable/glow"
         android:alpha="0"
         android:contentDescription="@null" />
