@@ -126,6 +126,7 @@ class LauncherActivity : AppCompatActivity() {
                 rows, config, ::launchApp, ::showAppMenu, ::onCardFocus,
                 ::launchWatch, ::onWatchFocus, lifecycleScope
             )
+            binding.categoryList.scrollToPosition(0)   // keep top row clear of the header after re-render
             if (animate) {
                 binding.categoryList.layoutAnimation =
                     AnimationUtils.loadLayoutAnimation(this@LauncherActivity, R.anim.layout_stagger)
