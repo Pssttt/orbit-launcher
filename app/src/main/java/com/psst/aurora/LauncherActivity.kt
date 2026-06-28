@@ -36,6 +36,7 @@ class LauncherActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLauncherBinding
     private lateinit var config: ConfigStore
     private lateinit var repo: AppRepository
+    private lateinit var watchRepo: WatchNextRepository
 
     private var pendingIconPkg: String? = null
     private var cachedApps: List<AppEntry>? = null
@@ -69,6 +70,7 @@ class LauncherActivity : AppCompatActivity() {
 
         config = ConfigStore(this)
         repo = AppRepository(this)
+        watchRepo = WatchNextRepository(this)
         createdFontScale = config.fontScale
 
         binding.categoryList.layoutManager = LinearLayoutManager(this)
@@ -117,10 +119,13 @@ class LauncherActivity : AppCompatActivity() {
     private fun loadAndRender(animate: Boolean) {
         lifecycleScope.launch {
             val apps = withContext(Dispatchers.IO) { cachedApps ?: repo.loadApps().also { cachedApps = it } }
-            val categories = buildCategories(apps)
-            binding.emptyState.visibility = if (categories.isEmpty()) View.VISIBLE else View.GONE
-            binding.categoryList.adapter =
-                CategoryAdapter(categories, config, ::launchApp, ::showAppMenu, ::onCardFocus)
+            val watch = withContext(Dispatchers.IO) { watchRepo.load() }
+            val rows = buildRows(apps, watch)
+            binding.emptyState.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
+            binding.categoryList.adapter = CategoryAdapter(
+                rows, config, ::launchApp, ::showAppMenu, ::onCardFocus,
+                ::launchWatch, ::onWatchFocus, lifecycleScope
+            )
             if (animate) {
                 binding.categoryList.layoutAnimation =
                     AnimationUtils.loadLayoutAnimation(this@LauncherActivity, R.anim.layout_stagger)
@@ -130,16 +135,22 @@ class LauncherActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildCategories(apps: List<AppEntry>): List<Category> {
+    private fun buildRows(apps: List<AppEntry>, watch: List<WatchItem>): List<HomeRow> {
         val visible = apps.filterNot { config.isHidden(it.packageName) }
         val byPkg = visible.associateBy { it.packageName }
-        val result = mutableListOf<Category>()
+        val result = mutableListOf<HomeRow>()
+
+        val watchItems = watch.map { item ->
+            val app = byPkg[item.packageName]
+            item.copy(accent = config.resolveAccent(app?.accent ?: 0))
+        }
+        if (watchItems.isNotEmpty()) result.add(HomeRow.Watch(getString(R.string.continue_watching), watchItems))
 
         val favs = config.favoritePackages().mapNotNull { byPkg[it] }
-        if (favs.isNotEmpty()) result.add(Category("Favorites", favs))
+        if (favs.isNotEmpty()) result.add(HomeRow.Apps(Category("Favorites", favs)))
 
         val recents = config.recentPackages().mapNotNull { byPkg[it] }
-        if (recents.isNotEmpty()) result.add(Category(getString(R.string.recent), recents))
+        if (recents.isNotEmpty()) result.add(HomeRow.Apps(Category(getString(R.string.recent), recents)))
 
         val grouped = visible.groupBy { config.categoryOverrideOf(it.packageName) ?: it.defaultCategory }
         val order = LinkedHashSet<String>().apply {
@@ -147,7 +158,8 @@ class LauncherActivity : AppCompatActivity() {
             addAll(grouped.keys.sorted())
         }
         order.forEach { name ->
-            grouped[name]?.takeIf { it.isNotEmpty() }?.let { result.add(Category(name, sortInCategory(name, it))) }
+            grouped[name]?.takeIf { it.isNotEmpty() }
+                ?.let { result.add(HomeRow.Apps(Category(name, sortInCategory(name, it)))) }
         }
         return result
     }
@@ -165,7 +177,14 @@ class LauncherActivity : AppCompatActivity() {
     // ---------- reactive glow + parallax ----------
 
     private fun onCardFocus(app: AppEntry, card: View, hasFocus: Boolean) {
-        if (!hasFocus) return
+        if (hasFocus) applyGlow(config.resolveAccent(app.accent), card)
+    }
+
+    private fun onWatchFocus(accent: Int, card: View, hasFocus: Boolean) {
+        if (hasFocus) applyGlow(accent, card)
+    }
+
+    private fun applyGlow(accent: Int, card: View) {
         val root = binding.root
         val loc = IntArray(2); card.getLocationInWindow(loc)
         val rootLoc = IntArray(2); root.getLocationInWindow(rootLoc)
@@ -174,7 +193,7 @@ class LauncherActivity : AppCompatActivity() {
 
         val glow = binding.ambientGlow
         val gw = if (glow.width > 0) glow.width else (760 * resources.displayMetrics.density).toInt()
-        glow.setColorFilter(config.resolveAccent(app.accent), PorterDuff.Mode.SRC_IN)
+        glow.setColorFilter(accent, PorterDuff.Mode.SRC_IN)
         glow.animate().x(cx - gw / 2f).y(cy - gw / 2f).alpha(0.45f).setDuration(280).start()
 
         val dx = cx - root.width / 2f
@@ -188,6 +207,12 @@ class LauncherActivity : AppCompatActivity() {
     private fun launchApp(app: AppEntry) {
         config.recordLaunch(app.packageName)
         runCatching { startActivity(app.launchIntent) }.onFailure { toast("Can't open ${app.label}") }
+    }
+
+    private fun launchWatch(item: WatchItem) {
+        if (item.packageName.isNotEmpty()) config.recordLaunch(item.packageName)
+        runCatching { startActivity(item.launchIntent) }
+            .onFailure { toast("Can't resume ${item.title}") }
     }
 
     private fun showAppMenu(app: AppEntry) {
