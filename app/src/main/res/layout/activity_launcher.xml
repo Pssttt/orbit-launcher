@@ -48,37 +48,31 @@
                 android:letterSpacing="0.25"
                 android:fontFamily="sans-serif-medium" />
 
-            <TextView
+            <ImageView
                 android:id="@+id/searchChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:layout_marginEnd="12dp"
                 android:background="@drawable/chip_bg"
                 android:focusable="true"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:paddingTop="9dp"
-                android:paddingBottom="9dp"
-                android:text="@string/search"
-                android:textColor="@color/chip_text"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+                android:padding="11dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_search"
+                android:tint="@color/chip_text"
+                android:contentDescription="@string/search" />
 
-            <TextView
+            <ImageView
                 android:id="@+id/settingsChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
                 android:layout_marginEnd="20dp"
                 android:background="@drawable/chip_bg"
                 android:focusable="true"
-                android:paddingStart="20dp"
-                android:paddingEnd="20dp"
-                android:paddingTop="9dp"
-                android:paddingBottom="9dp"
-                android:text="@string/settings"
-                android:textColor="@color/chip_text"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+                android:padding="11dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_settings"
+                android:tint="@color/chip_text"
+                android:contentDescription="@string/settings" />
 
             <TextView
                 android:id="@+id/clock"
