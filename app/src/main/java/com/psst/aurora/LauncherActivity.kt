@@ -32,6 +32,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.psst.aurora.databinding.ActivityLauncherBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -58,6 +59,12 @@ class LauncherActivity : AppCompatActivity() {
     private val idleHandler = Handler(Looper.getMainLooper())
     private val showSaver = Runnable { showScreensaver() }
     private val idleTimeoutMs = 180_000L
+
+    private var lastFocusedPkg: String? = null   // restore focus here on re-render
+    private var reorderPkg: String? = null        // non-null while in rearrange mode
+    private var reorderRow: String? = null        // which row is being rearranged
+
+    companion object { private const val FAVORITES_ROW = "Favorites" }
 
     override fun attachBaseContext(newBase: Context) {
         val fs = ConfigStore(newBase).fontScale
@@ -198,8 +205,33 @@ class LauncherActivity : AppCompatActivity() {
                     AnimationUtils.loadLayoutAnimation(this@LauncherActivity, R.anim.layout_stagger)
                 binding.categoryList.scheduleLayoutAnimation()
             }
-            binding.categoryList.post { binding.categoryList.requestFocus() }
+            restoreFocus()
         }
+    }
+
+    /** Re-focus the last-focused app after a re-render; falls back to the first card. */
+    private fun restoreFocus(retries: Int = 2) {
+        val pkg = lastFocusedPkg
+        binding.categoryList.post {
+            val card = pkg?.let { findCardByPkg(it) }
+            when {
+                card != null -> card.requestFocus()
+                pkg != null && retries > 0 -> restoreFocus(retries - 1)
+                else -> binding.categoryList.requestFocus()
+            }
+        }
+    }
+
+    private fun findCardByPkg(pkg: String): View? {
+        val list = binding.categoryList
+        for (i in 0 until list.childCount) {
+            val row = list.getChildAt(i).findViewById<RecyclerView>(R.id.appRow) ?: continue
+            for (j in 0 until row.childCount) {
+                val card = row.getChildAt(j)
+                if (card.tag == pkg) return card
+            }
+        }
+        return null
     }
 
     private fun buildRows(apps: List<AppEntry>, watch: List<WatchItem>): List<HomeRow> {
@@ -214,7 +246,7 @@ class LauncherActivity : AppCompatActivity() {
         if (watchItems.isNotEmpty()) result.add(HomeRow.Watch(getString(R.string.continue_watching), watchItems))
 
         val favs = config.favoritePackages().mapNotNull { byPkg[it] }
-        if (favs.isNotEmpty()) result.add(HomeRow.Apps(Category("Favorites", favs)))
+        if (favs.isNotEmpty()) result.add(HomeRow.Apps(Category(FAVORITES_ROW, favs)))
 
         val recents = config.recentPackages().mapNotNull { byPkg[it] }
         if (recents.isNotEmpty()) result.add(HomeRow.Apps(Category(getString(R.string.recent), recents)))
@@ -244,7 +276,10 @@ class LauncherActivity : AppCompatActivity() {
     // ---------- reactive glow + parallax ----------
 
     private fun onCardFocus(app: AppEntry, card: View, hasFocus: Boolean) {
-        if (hasFocus) applyGlow(config.resolveAccent(app.accent), card)
+        if (hasFocus) {
+            lastFocusedPkg = app.packageName
+            applyGlow(config.resolveAccent(app.accent), card)
+        }
     }
 
     private fun onWatchFocus(accent: Int, card: View, hasFocus: Boolean) {
@@ -285,7 +320,7 @@ class LauncherActivity : AppCompatActivity() {
 
     private data class MenuAction(val icon: Int, val label: String, val run: () -> Unit)
 
-    private fun showAppMenu(app: AppEntry) {
+    private fun showAppMenu(app: AppEntry, rowName: String) {
         val accent = config.resolveAccent(app.accent)
         val density = resources.displayMetrics.density
         val dialog = Dialog(this)
@@ -293,8 +328,7 @@ class LauncherActivity : AppCompatActivity() {
         val favLabel = if (config.isFavorite(app.packageName)) "Remove from favorites" else "Add to favorites"
         val actions = listOf(
             MenuAction(R.drawable.ic_star, favLabel) { config.toggleFavorite(app.packageName); loadAndRender(false) },
-            MenuAction(R.drawable.ic_chevron_left, "Move left") { moveApp(app, -1) },
-            MenuAction(R.drawable.ic_chevron_right, "Move right") { moveApp(app, +1) },
+            MenuAction(R.drawable.ic_swap, "Rearrange") { enterReorder(app, rowName) },
             MenuAction(R.drawable.ic_image, getString(R.string.set_icon)) { pendingIconPkg = app.packageName; pickIcon.launch("image/*") },
             MenuAction(R.drawable.ic_refresh, getString(R.string.reset_icon)) { config.clearCustomIcon(app.packageName); loadAndRender(false) },
             MenuAction(R.drawable.ic_label, getString(R.string.move_category)) { chooseCategory(app) },
@@ -362,15 +396,41 @@ class LauncherActivity : AppCompatActivity() {
         }.onFailure { toast("Can't uninstall") }
     }
 
-    private fun moveApp(app: AppEntry, delta: Int) {
-        val cat = config.categoryOverrideOf(app.packageName) ?: app.defaultCategory
-        val pkgs = (cachedApps ?: emptyList())
-            .filterNot { config.isHidden(it.packageName) }
-            .filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == cat }
-            .let { sortInCategory(cat, it) }
-            .map { it.packageName }
-        if (config.moveAppWithin(cat, pkgs, app.packageName, delta)) loadAndRender(false)
-        else toast(if (delta < 0) "Already first" else "Already last")
+    /** Reorder [app] by [delta] within whichever row it was invoked from. */
+    private fun moveApp(app: AppEntry, delta: Int, rowName: String) {
+        val moved = if (rowName == FAVORITES_ROW) {
+            config.moveFavorite(app.packageName, delta)
+        } else {
+            val cat = config.categoryOverrideOf(app.packageName) ?: app.defaultCategory
+            val pkgs = (cachedApps ?: emptyList())
+                .filterNot { config.isHidden(it.packageName) }
+                .filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == cat }
+                .let { sortInCategory(cat, it) }
+                .map { it.packageName }
+            config.moveAppWithin(cat, pkgs, app.packageName, delta)
+        }
+        // re-render restores focus to lastFocusedPkg (the moving card), so it follows the move
+        if (moved) loadAndRender(false)
+    }
+
+    // ---------- rearrange mode ----------
+
+    private fun enterReorder(app: AppEntry, rowName: String) {
+        if (rowName == getString(R.string.recent)) {
+            toast("Recent is ordered by recent use"); return
+        }
+        reorderPkg = app.packageName
+        reorderRow = rowName
+        lastFocusedPkg = app.packageName
+        binding.appTitle.text = getString(R.string.rearranging_hint)
+        restoreFocus()
+        toast("Move with left / right, OK to finish")
+    }
+
+    private fun exitReorder() {
+        reorderPkg = null
+        reorderRow = null
+        binding.appTitle.text = getString(R.string.app_name)
     }
 
     private fun chooseCategory(app: AppEntry) {
@@ -482,7 +542,27 @@ class LauncherActivity : AppCompatActivity() {
             }
             if (!passThrough) return true  // swallow nav keys so they only dismiss
         }
+        val rp = reorderPkg
+        if (rp != null && isReorderKey(event.keyCode)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val app = cachedApps?.firstOrNull { it.packageName == rp }
+                val rowName = reorderRow ?: ""
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> app?.let { moveApp(it, -1, rowName) }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> app?.let { moveApp(it, +1, rowName) }
+                    else -> exitReorder()   // OK / BACK / UP / DOWN finish rearranging
+                }
+            }
+            return true   // consume down and up so keys only rearrange
+        }
         return super.dispatchKeyEvent(event)
+    }
+
+    private fun isReorderKey(keyCode: Int) = when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BACK,
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> true
+        else -> false
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

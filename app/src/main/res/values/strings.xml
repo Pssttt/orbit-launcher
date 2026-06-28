@@ -21,4 +21,5 @@
     <string name="android_settings">Android settings</string>
     <string name="wifi_settings">Wi-Fi</string>
     <string name="sound_settings">Sound</string>
+    <string name="rearranging_hint">Rearranging   ‹ ›  move  ·  OK done</string>
 </resources>

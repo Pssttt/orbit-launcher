@@ -193,6 +193,15 @@ class ConfigStore(context: Context) {
     }
     fun favoritePackages(): List<String> = favorites.toList()
 
+    /** Swap a favorite with its neighbour (delta -1 = left, +1 = right). */
+    fun moveFavorite(pkg: String, delta: Int): Boolean {
+        val i = favorites.indexOf(pkg); val j = i + delta
+        if (i < 0 || j !in favorites.indices) return false
+        favorites[i] = favorites[j].also { favorites[j] = favorites[i] }
+        save()
+        return true
+    }
+
     // appearance
     fun resolveAccent(appAccent: Int): Int = if (globalAccent != 0) globalAccent else appAccent
     fun setClock24(v: Boolean) { clock24 = v; save() }

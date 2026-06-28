@@ -57,7 +57,14 @@ class AppCardAdapter(
         lp.height = (135 * density * config.cardScale).toInt()
         holder.itemView.layoutParams = lp
 
-        holder.itemView.setOnClickListener { onClick(app) }
+        holder.itemView.tag = app.packageName   // lets the launcher restore focus by package
+        holder.itemView.setOnClickListener { v ->
+            // quick press-in so selection feels responsive before the app opens
+            v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(80).withEndAction {
+                v.animate().scaleX(1.12f).scaleY(1.12f).setDuration(120).start()
+                onClick(app)
+            }.start()
+        }
         holder.itemView.setOnLongClickListener { onLongClick(app); true }
         holder.itemView.setOnFocusChangeListener { v, hasFocus ->
             val row = v.parent as? RecyclerView

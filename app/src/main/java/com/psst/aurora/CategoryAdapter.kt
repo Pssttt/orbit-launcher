@@ -11,7 +11,7 @@ class CategoryAdapter(
     private val rows: List<HomeRow>,
     private val config: ConfigStore,
     private val onClick: (AppEntry) -> Unit,
-    private val onLongClick: (AppEntry) -> Unit,
+    private val onLongClick: (AppEntry, String) -> Unit,   // app + row name (Favorites / Recent / category)
     private val onFocus: (AppEntry, View, Boolean) -> Unit,
     private val onWatchClick: (WatchItem) -> Unit,
     private val onWatchFocus: (Int, View, Boolean) -> Unit,
@@ -46,7 +46,10 @@ class CategoryAdapter(
         when (val row = rows[position]) {
             is HomeRow.Apps -> {
                 holder.title.text = row.category.name.uppercase()
-                holder.row.adapter = AppCardAdapter(row.category.apps, config, onClick, onLongClick, onFocus)
+                holder.row.adapter = AppCardAdapter(
+                    row.category.apps, config, onClick,
+                    { app -> onLongClick(app, row.category.name) }, onFocus
+                )
             }
             is HomeRow.Watch -> {
                 holder.title.text = row.title.uppercase()
