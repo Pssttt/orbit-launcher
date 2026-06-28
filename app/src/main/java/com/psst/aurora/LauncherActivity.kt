@@ -135,6 +135,9 @@ class LauncherActivity : AppCompatActivity() {
         val byPkg = visible.associateBy { it.packageName }
         val result = mutableListOf<Category>()
 
+        val favs = config.favoritePackages().mapNotNull { byPkg[it] }
+        if (favs.isNotEmpty()) result.add(Category("Favorites", favs))
+
         val recents = config.recentPackages().mapNotNull { byPkg[it] }
         if (recents.isNotEmpty()) result.add(Category(getString(R.string.recent), recents))
 
@@ -188,7 +191,9 @@ class LauncherActivity : AppCompatActivity() {
     }
 
     private fun showAppMenu(app: AppEntry) {
+        val favLabel = if (config.isFavorite(app.packageName)) "Remove from favorites" else "Add to favorites"
         val options = arrayOf(
+            favLabel,
             "Move left",
             "Move right",
             getString(R.string.set_icon),
@@ -202,14 +207,15 @@ class LauncherActivity : AppCompatActivity() {
             .setTitle(app.label)
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> moveApp(app, -1)
-                    1 -> moveApp(app, +1)
-                    2 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
-                    3 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
-                    4 -> chooseCategory(app)
-                    5 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
-                    6 -> openAppInfo(app.packageName)
-                    7 -> startActivity(Intent(this, SettingsActivity::class.java))
+                    0 -> { config.toggleFavorite(app.packageName); loadAndRender(false) }
+                    1 -> moveApp(app, -1)
+                    2 -> moveApp(app, +1)
+                    3 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
+                    4 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
+                    5 -> chooseCategory(app)
+                    6 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
+                    7 -> openAppInfo(app.packageName)
+                    8 -> startActivity(Intent(this, SettingsActivity::class.java))
                 }
             }
             .show()

@@ -66,6 +66,7 @@ class ConfigStore(context: Context) {
     private val customIcons = mutableMapOf<String, String>()
     private val categoryOverride = mutableMapOf<String, String>()
     private val recents = mutableListOf<String>()
+    private val favorites = mutableListOf<String>()
     private val categoryOrder = mutableListOf<String>()
     private val appOrder = mutableMapOf<String, MutableList<String>>()  // category -> ordered pkgs
 
@@ -90,6 +91,7 @@ class ConfigStore(context: Context) {
             r.optJSONObject("icons")?.let { o -> o.keys().forEach { customIcons[it] = o.getString(it) } }
             r.optJSONObject("categories")?.let { o -> o.keys().forEach { categoryOverride[it] = o.getString(it) } }
             r.optJSONArray("recents")?.let { for (i in 0 until it.length()) recents.add(it.getString(i)) }
+            r.optJSONArray("favorites")?.let { for (i in 0 until it.length()) favorites.add(it.getString(i)) }
             r.optJSONArray("categoryOrder")?.let { for (i in 0 until it.length()) categoryOrder.add(it.getString(i)) }
             r.optJSONObject("appOrder")?.let { o ->
                 o.keys().forEach { cat ->
@@ -115,6 +117,7 @@ class ConfigStore(context: Context) {
             r.put("icons", JSONObject(customIcons as Map<*, *>))
             r.put("categories", JSONObject(categoryOverride as Map<*, *>))
             r.put("recents", JSONArray(recents.toList()))
+            r.put("favorites", JSONArray(favorites.toList()))
             r.put("categoryOrder", JSONArray(categoryOrder.toList()))
             r.put("appOrder", JSONObject(appOrder.mapValues { JSONArray(it.value) } as Map<*, *>))
             r.put("wallpaper", wallpaperPath ?: "")
@@ -176,6 +179,13 @@ class ConfigStore(context: Context) {
         save()
     }
     fun recentPackages(): List<String> = recents.toList()
+
+    fun isFavorite(pkg: String) = favorites.contains(pkg)
+    fun toggleFavorite(pkg: String) {
+        if (!favorites.remove(pkg)) favorites.add(pkg)
+        save()
+    }
+    fun favoritePackages(): List<String> = favorites.toList()
 
     // appearance
     fun resolveAccent(appAccent: Int): Int = if (globalAccent != 0) globalAccent else appAccent
