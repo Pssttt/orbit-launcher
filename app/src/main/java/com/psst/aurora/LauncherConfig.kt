@@ -25,7 +25,7 @@ object Banners {
 
 /** Default category assignment for known apps; everything else falls into "Apps". */
 object DefaultCategories {
-    val order = listOf("Streaming", "Media", "Tools", "Apps")
+    val order = listOf("Streaming", "Media", "Music", "Games", "Social", "News", "Tools", "Apps")
     private val map: Map<String, String> = mapOf(
         "org.smarttube.beta" to "Streaming",
         "com.netflix.ninja" to "Streaming",
@@ -41,7 +41,19 @@ object DefaultCategories {
         "org.fossify.gallery" to "Tools"
     )
 
-    fun categoryFor(pkg: String): String = map[pkg] ?: "Apps"
+    /** Hand-mapped category for known apps; null otherwise. */
+    fun brandCategory(pkg: String): String? = map[pkg]
+
+    /** Map ApplicationInfo.category (API 26+) to one of our categories. */
+    fun fromAppInfo(category: Int): String = when (category) {
+        android.content.pm.ApplicationInfo.CATEGORY_VIDEO -> "Media"
+        android.content.pm.ApplicationInfo.CATEGORY_IMAGE -> "Media"
+        android.content.pm.ApplicationInfo.CATEGORY_AUDIO -> "Music"
+        android.content.pm.ApplicationInfo.CATEGORY_GAME -> "Games"
+        android.content.pm.ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+        android.content.pm.ApplicationInfo.CATEGORY_NEWS -> "News"
+        else -> "Apps"
+    }
 }
 
 /** User configuration persisted as JSON in filesDir/config.json. */
@@ -123,7 +135,7 @@ class ConfigStore(context: Context) {
     fun hiddenPackages(): Set<String> = hidden.toSet()
 
     // categories
-    fun categoryFor(pkg: String): String = categoryOverride[pkg] ?: DefaultCategories.categoryFor(pkg)
+    fun categoryOverrideOf(pkg: String): String? = categoryOverride[pkg]
     fun setCategory(pkg: String, category: String) { categoryOverride[pkg] = category; save() }
     fun categoryOrder(): List<String> = categoryOrder.ifEmpty { DefaultCategories.order }
     fun appOrderFor(category: String): List<String> = appOrder[category]?.toList() ?: emptyList()
@@ -166,7 +178,7 @@ class ConfigStore(context: Context) {
     fun recentPackages(): List<String> = recents.toList()
 
     // appearance
-    fun accentFor(pkg: String): Int = if (globalAccent != 0) globalAccent else AccentColors.forPackage(pkg)
+    fun resolveAccent(appAccent: Int): Int = if (globalAccent != 0) globalAccent else appAccent
     fun setClock24(v: Boolean) { clock24 = v; save() }
     fun setShowClock(v: Boolean) { showClock = v; save() }
     fun setCardScale(v: Float) { cardScale = v; save() }

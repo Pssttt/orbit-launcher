@@ -80,7 +80,7 @@ class CategoriesActivity : AppCompatActivity() {
             .setPositiveButton("Save") { _, _ ->
                 val new = input.text.toString().trim()
                 if (new.isNotEmpty() && new != old) {
-                    val affected = apps.filter { config.categoryFor(it.packageName) == old }.map { it.packageName }
+                    val affected = apps.filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == old }.map { it.packageName }
                     config.renameCategory(old, new, affected)
                     refresh()
                 }

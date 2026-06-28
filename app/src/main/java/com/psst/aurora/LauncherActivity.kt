@@ -138,7 +138,7 @@ class LauncherActivity : AppCompatActivity() {
         val recents = config.recentPackages().mapNotNull { byPkg[it] }
         if (recents.isNotEmpty()) result.add(Category(getString(R.string.recent), recents))
 
-        val grouped = visible.groupBy { config.categoryFor(it.packageName) }
+        val grouped = visible.groupBy { config.categoryOverrideOf(it.packageName) ?: it.defaultCategory }
         val order = LinkedHashSet<String>().apply {
             addAll(config.categoryOrder())
             addAll(grouped.keys.sorted())
@@ -171,7 +171,7 @@ class LauncherActivity : AppCompatActivity() {
 
         val glow = binding.ambientGlow
         val gw = if (glow.width > 0) glow.width else (760 * resources.displayMetrics.density).toInt()
-        glow.setColorFilter(config.accentFor(app.packageName), PorterDuff.Mode.SRC_IN)
+        glow.setColorFilter(config.resolveAccent(app.accent), PorterDuff.Mode.SRC_IN)
         glow.animate().x(cx - gw / 2f).y(cy - gw / 2f).alpha(0.45f).setDuration(280).start()
 
         val dx = cx - root.width / 2f
@@ -216,10 +216,10 @@ class LauncherActivity : AppCompatActivity() {
     }
 
     private fun moveApp(app: AppEntry, delta: Int) {
-        val cat = config.categoryFor(app.packageName)
+        val cat = config.categoryOverrideOf(app.packageName) ?: app.defaultCategory
         val pkgs = (cachedApps ?: emptyList())
             .filterNot { config.isHidden(it.packageName) }
-            .filter { config.categoryFor(it.packageName) == cat }
+            .filter { (config.categoryOverrideOf(it.packageName) ?: it.defaultCategory) == cat }
             .let { sortInCategory(cat, it) }
             .map { it.packageName }
         if (config.moveAppWithin(cat, pkgs, app.packageName, delta)) loadAndRender(false)
