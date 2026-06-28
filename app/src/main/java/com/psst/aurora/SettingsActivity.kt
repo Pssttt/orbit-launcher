@@ -69,8 +69,18 @@ class SettingsActivity : AppCompatActivity() {
             pick("Screensaver", arrayOf("On (after 3 min idle)", "Off")) { config.setScreensaver(it == 0) }
         }
         binding.btnCheckUpdates.setOnClickListener { Updater.promptIfAvailable(this, manual = true) }
+        binding.btnAndroidSettings.setOnClickListener { openSystem(android.provider.Settings.ACTION_SETTINGS) }
+        binding.btnWifi.setOnClickListener { openSystem(android.provider.Settings.ACTION_WIFI_SETTINGS) }
+        binding.btnDisplay.setOnClickListener { openSystem(android.provider.Settings.ACTION_DISPLAY_SETTINGS) }
 
         binding.btnAccent.requestFocus()
+    }
+
+    private fun openSystem(action: String) {
+        val fallback = android.provider.Settings.ACTION_SETTINGS
+        runCatching { startActivity(Intent(action)) }
+            .recoverCatching { startActivity(Intent(fallback)) }
+            .onFailure { toast("Can't open settings") }
     }
 
     private fun freeMemory() {

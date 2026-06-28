@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_base"
@@ -24,22 +25,43 @@
             android:paddingBottom="24dp" />
 
         <TextView style="@style/SettingsHeader" android:text="@string/appearance" />
-        <TextView android:id="@+id/btnAccent" style="@style/SettingsItem" android:text="Accent color" />
-        <TextView android:id="@+id/btnBase" style="@style/SettingsItem" android:text="Background" />
-        <TextView android:id="@+id/btnCardSize" style="@style/SettingsItem" android:text="Card size" />
-        <TextView android:id="@+id/btnFontSize" style="@style/SettingsItem" android:text="Font size" />
-        <TextView android:id="@+id/btnClock" style="@style/SettingsItem" android:text="Clock format" />
-        <TextView android:id="@+id/btnShowClock" style="@style/SettingsItem" android:text="Show clock" />
-        <TextView android:id="@+id/btnWallpaper" style="@style/SettingsItem" android:text="Change wallpaper" />
-        <TextView android:id="@+id/btnResetWallpaper" style="@style/SettingsItem" android:text="Reset wallpaper" />
+        <TextView android:id="@+id/btnAccent" style="@style/SettingsItem" android:text="Accent color"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_palette" />
+        <TextView android:id="@+id/btnBase" style="@style/SettingsItem" android:text="Background"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_image" />
+        <TextView android:id="@+id/btnCardSize" style="@style/SettingsItem" android:text="Card size"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_aspect_ratio" />
+        <TextView android:id="@+id/btnFontSize" style="@style/SettingsItem" android:text="Font size"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_format_size" />
+        <TextView android:id="@+id/btnClock" style="@style/SettingsItem" android:text="Clock format"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_clock" />
+        <TextView android:id="@+id/btnShowClock" style="@style/SettingsItem" android:text="Show clock"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_clock" />
+        <TextView android:id="@+id/btnWallpaper" style="@style/SettingsItem" android:text="Change wallpaper"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_image" />
+        <TextView android:id="@+id/btnResetWallpaper" style="@style/SettingsItem" android:text="Reset wallpaper"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_refresh" />
 
         <TextView style="@style/SettingsHeader" android:text="Apps" />
-        <TextView android:id="@+id/btnManageApps" style="@style/SettingsItem" android:text="@string/manage_apps" />
-        <TextView android:id="@+id/btnCategories" style="@style/SettingsItem" android:text="@string/edit_categories" />
+        <TextView android:id="@+id/btnManageApps" style="@style/SettingsItem" android:text="@string/manage_apps"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_apps" />
+        <TextView android:id="@+id/btnCategories" style="@style/SettingsItem" android:text="@string/edit_categories"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_label" />
 
         <TextView style="@style/SettingsHeader" android:text="System" />
-        <TextView android:id="@+id/btnFreeMemory" style="@style/SettingsItem" android:text="@string/free_memory" />
-        <TextView android:id="@+id/btnScreensaver" style="@style/SettingsItem" android:text="@string/screensaver" />
-        <TextView android:id="@+id/btnCheckUpdates" style="@style/SettingsItem" android:text="@string/check_updates" />
+        <TextView android:id="@+id/btnFreeMemory" style="@style/SettingsItem" android:text="@string/free_memory"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_memory" />
+        <TextView android:id="@+id/btnScreensaver" style="@style/SettingsItem" android:text="@string/screensaver"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_bedtime" />
+        <TextView android:id="@+id/btnCheckUpdates" style="@style/SettingsItem" android:text="@string/check_updates"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_download" />
+
+        <TextView style="@style/SettingsHeader" android:text="@string/device" />
+        <TextView android:id="@+id/btnAndroidSettings" style="@style/SettingsItem" android:text="@string/android_settings"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_settings" />
+        <TextView android:id="@+id/btnWifi" style="@style/SettingsItem" android:text="@string/wifi_settings"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_wifi" />
+        <TextView android:id="@+id/btnDisplay" style="@style/SettingsItem" android:text="@string/display_settings"
+            android:drawablePadding="20dp" app:drawableStartCompat="@drawable/ic_display" />
     </LinearLayout>
 </ScrollView>
