@@ -55,6 +55,7 @@ class ConfigStore(context: Context) {
     private val categoryOverride = mutableMapOf<String, String>()
     private val recents = mutableListOf<String>()
     private val categoryOrder = mutableListOf<String>()
+    private val appOrder = mutableMapOf<String, MutableList<String>>()  // category -> ordered pkgs
 
     var wallpaperPath: String? = null;  private set
     var clock24: Boolean = DateFormat.is24HourFormat(context);  private set
@@ -78,6 +79,12 @@ class ConfigStore(context: Context) {
             r.optJSONObject("categories")?.let { o -> o.keys().forEach { categoryOverride[it] = o.getString(it) } }
             r.optJSONArray("recents")?.let { for (i in 0 until it.length()) recents.add(it.getString(i)) }
             r.optJSONArray("categoryOrder")?.let { for (i in 0 until it.length()) categoryOrder.add(it.getString(i)) }
+            r.optJSONObject("appOrder")?.let { o ->
+                o.keys().forEach { cat ->
+                    val arr = o.getJSONArray(cat)
+                    appOrder[cat] = MutableList(arr.length()) { arr.getString(it) }
+                }
+            }
             wallpaperPath = r.optString("wallpaper", "").ifEmpty { null }
             clock24 = r.optBoolean("clock24", clock24)
             showClock = r.optBoolean("showClock", true)
@@ -97,6 +104,7 @@ class ConfigStore(context: Context) {
             r.put("categories", JSONObject(categoryOverride as Map<*, *>))
             r.put("recents", JSONArray(recents.toList()))
             r.put("categoryOrder", JSONArray(categoryOrder.toList()))
+            r.put("appOrder", JSONObject(appOrder.mapValues { JSONArray(it.value) } as Map<*, *>))
             r.put("wallpaper", wallpaperPath ?: "")
             r.put("clock24", clock24)
             r.put("showClock", showClock)
@@ -118,6 +126,19 @@ class ConfigStore(context: Context) {
     fun categoryFor(pkg: String): String = categoryOverride[pkg] ?: DefaultCategories.categoryFor(pkg)
     fun setCategory(pkg: String, category: String) { categoryOverride[pkg] = category; save() }
     fun categoryOrder(): List<String> = categoryOrder.ifEmpty { DefaultCategories.order }
+    fun appOrderFor(category: String): List<String> = appOrder[category]?.toList() ?: emptyList()
+
+    /** Swap [pkg] with its neighbour (delta -1 = left, +1 = right) within [category]'s current order. */
+    fun moveAppWithin(category: String, orderedPkgs: List<String>, pkg: String, delta: Int): Boolean {
+        val list = orderedPkgs.toMutableList()
+        val i = list.indexOf(pkg)
+        val j = i + delta
+        if (i < 0 || j !in list.indices) return false
+        list[i] = list[j].also { list[j] = list[i] }
+        appOrder[category] = list
+        save()
+        return true
+    }
     fun setCategoryOrder(list: List<String>) { categoryOrder.clear(); categoryOrder.addAll(list); save() }
     fun renameCategory(old: String, new: String, affected: List<String>) {
         val idx = categoryOrder().indexOf(old)

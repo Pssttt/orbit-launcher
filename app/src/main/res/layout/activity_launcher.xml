@@ -108,4 +108,15 @@
             android:paddingBottom="24dp"
             android:descendantFocusability="afterDescendants" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/emptyState"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="No apps found"
+        android:textColor="@color/text_secondary"
+        android:textSize="18sp"
+        android:fontFamily="sans-serif"
+        android:visibility="gone" />
 </FrameLayout>

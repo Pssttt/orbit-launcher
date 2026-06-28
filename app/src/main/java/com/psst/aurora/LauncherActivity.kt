@@ -118,6 +118,7 @@ class LauncherActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val apps = withContext(Dispatchers.IO) { cachedApps ?: repo.loadApps().also { cachedApps = it } }
             val categories = buildCategories(apps)
+            binding.emptyState.visibility = if (categories.isEmpty()) View.VISIBLE else View.GONE
             binding.categoryList.adapter =
                 CategoryAdapter(categories, config, ::launchApp, ::showAppMenu, ::onCardFocus)
             if (animate) {
@@ -143,9 +144,19 @@ class LauncherActivity : AppCompatActivity() {
             addAll(grouped.keys.sorted())
         }
         order.forEach { name ->
-            grouped[name]?.takeIf { it.isNotEmpty() }?.let { result.add(Category(name, it)) }
+            grouped[name]?.takeIf { it.isNotEmpty() }?.let { result.add(Category(name, sortInCategory(name, it))) }
         }
         return result
+    }
+
+    private fun sortInCategory(category: String, apps: List<AppEntry>): List<AppEntry> {
+        val ord = config.appOrderFor(category)
+        return apps.sortedWith(
+            compareBy(
+                { val i = ord.indexOf(it.packageName); if (i < 0) Int.MAX_VALUE else i },
+                { it.label.lowercase() }
+            )
+        )
     }
 
     // ---------- reactive glow + parallax ----------
@@ -178,6 +189,8 @@ class LauncherActivity : AppCompatActivity() {
 
     private fun showAppMenu(app: AppEntry) {
         val options = arrayOf(
+            "Move left",
+            "Move right",
             getString(R.string.set_icon),
             getString(R.string.reset_icon),
             getString(R.string.move_category),
@@ -189,15 +202,28 @@ class LauncherActivity : AppCompatActivity() {
             .setTitle(app.label)
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
-                    1 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
-                    2 -> chooseCategory(app)
-                    3 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
-                    4 -> openAppInfo(app.packageName)
-                    5 -> startActivity(Intent(this, SettingsActivity::class.java))
+                    0 -> moveApp(app, -1)
+                    1 -> moveApp(app, +1)
+                    2 -> { pendingIconPkg = app.packageName; pickIcon.launch("image/*") }
+                    3 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
+                    4 -> chooseCategory(app)
+                    5 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
+                    6 -> openAppInfo(app.packageName)
+                    7 -> startActivity(Intent(this, SettingsActivity::class.java))
                 }
             }
             .show()
+    }
+
+    private fun moveApp(app: AppEntry, delta: Int) {
+        val cat = config.categoryFor(app.packageName)
+        val pkgs = (cachedApps ?: emptyList())
+            .filterNot { config.isHidden(it.packageName) }
+            .filter { config.categoryFor(it.packageName) == cat }
+            .let { sortInCategory(cat, it) }
+            .map { it.packageName }
+        if (config.moveAppWithin(cat, pkgs, app.packageName, delta)) loadAndRender(false)
+        else toast(if (delta < 0) "Already first" else "Already last")
     }
 
     private fun chooseCategory(app: AppEntry) {
