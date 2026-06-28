@@ -3,6 +3,11 @@ package com.psst.aurora
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -29,6 +34,7 @@ class SettingsActivity : AppCompatActivity() {
     private val baseValues = intArrayOf(0xFF08080C.toInt(), 0xFF000000.toInt(), 0xFF000B25.toInt(), 0xFF14141A.toInt())
     private val sizeNames = arrayOf("Small", "Medium", "Large")
     private val sizeValues = floatArrayOf(0.85f, 1.0f, 1.18f)
+    private val fontValues = floatArrayOf(0.9f, 1.0f, 1.15f)
 
     private val pickWallpaper = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) importWallpaper(uri)
@@ -52,7 +58,7 @@ class SettingsActivity : AppCompatActivity() {
             pick("Card size", sizeNames) { config.setCardScale(sizeValues[it]) }
         }
         binding.btnFontSize.setOnClickListener {
-            pick("Font size", sizeNames) { config.setFontScale(floatArrayOf(0.9f, 1.0f, 1.15f)[it]) }
+            pick("Font size", sizeNames) { config.setFontScale(fontValues[it]) }
         }
         binding.btnClock.setOnClickListener {
             pick("Clock format", arrayOf("24-hour", "12-hour")) { config.setClock24(it == 0) }
@@ -73,7 +79,46 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnWifi.setOnClickListener { openSystem(android.provider.Settings.ACTION_WIFI_SETTINGS) }
         binding.btnSound.setOnClickListener { openSystem(android.provider.Settings.ACTION_SOUND_SETTINGS) }
 
+        bindValues()
         binding.btnAccent.requestFocus()
+    }
+
+    /** Show each configurable setting's current value as a dim second line. */
+    private fun bindValues() {
+        setItem(binding.btnAccent, "Accent color", accentValueName())
+        setItem(binding.btnBase, "Background", baseValueName())
+        setItem(binding.btnCardSize, "Card size", nearestName(config.cardScale, sizeValues))
+        setItem(binding.btnFontSize, "Font size", nearestName(config.fontScale, fontValues))
+        setItem(binding.btnClock, "Clock format", if (config.clock24) "24-hour" else "12-hour")
+        setItem(binding.btnShowClock, "Show clock", if (config.showClock) "Shown" else "Hidden")
+        setItem(binding.btnScreensaver, "Screensaver", if (config.screensaver) "On" else "Off")
+    }
+
+    private fun setItem(tv: TextView, title: String, value: String) {
+        val sb = SpannableStringBuilder(title).append('\n')
+        val start = sb.length
+        sb.append(value)
+        sb.setSpan(RelativeSizeSpan(0.72f), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        sb.setSpan(ForegroundColorSpan(0xFF9A9AA6.toInt()), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        tv.text = sb
+    }
+
+    private fun accentValueName(): String {
+        if (config.globalAccent == 0) return accentNames[0]
+        val i = accentValues.indexOf(config.globalAccent)
+        return if (i >= 0) accentNames[i] else "Custom"
+    }
+
+    private fun baseValueName(): String {
+        if (config.useGradient) return baseNames[0]
+        val i = baseValues.indexOf(config.baseColor)
+        return if (i >= 0) baseNames[i + 1] else "Custom"
+    }
+
+    private fun nearestName(value: Float, values: FloatArray): String {
+        var best = 0
+        for (i in values.indices) if (kotlin.math.abs(values[i] - value) < kotlin.math.abs(values[best] - value)) best = i
+        return sizeNames[best]
     }
 
     private fun openSystem(action: String) {
@@ -105,7 +150,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun pick(title: String, items: Array<String>, onPick: (Int) -> Unit) {
         AlertDialog.Builder(this)
             .setTitle(title)
-            .setItems(items) { _, which -> onPick(which); toast("Saved") }
+            .setItems(items) { _, which -> onPick(which); bindValues(); toast("Saved") }
             .show()
     }
 
