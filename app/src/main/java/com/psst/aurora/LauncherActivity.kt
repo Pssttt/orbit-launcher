@@ -314,13 +314,9 @@ class LauncherActivity : AppCompatActivity() {
             row.findViewById<TextView>(R.id.rowLabel).text = a.label
             row.setOnClickListener { dialog.dismiss(); a.run() }
             row.setOnFocusChangeListener { v, hasFocus ->
-                if (hasFocus) {
-                    v.background = menuRowFocusBg(accent, density)
-                    v.animate().translationX(8f * density).setDuration(160).start()
-                } else {
-                    v.background = null
-                    v.animate().translationX(0f).setDuration(160).start()
-                }
+                // No translationX: shifting the row pushes its highlight past the scroll
+                // clip and squares off the right corners. Fill-only keeps all corners round.
+                v.background = if (hasFocus) menuRowFocusBg(accent, density) else null
             }
             rows.addView(row)
         }
