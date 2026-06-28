@@ -36,5 +36,9 @@
         <TextView style="@style/SettingsHeader" android:text="Apps" />
         <TextView android:id="@+id/btnManageApps" style="@style/SettingsItem" android:text="@string/manage_apps" />
         <TextView android:id="@+id/btnCategories" style="@style/SettingsItem" android:text="@string/edit_categories" />
+
+        <TextView style="@style/SettingsHeader" android:text="System" />
+        <TextView android:id="@+id/btnFreeMemory" style="@style/SettingsItem" android:text="@string/free_memory" />
+        <TextView android:id="@+id/btnScreensaver" style="@style/SettingsItem" android:text="@string/screensaver" />
     </LinearLayout>
 </ScrollView>

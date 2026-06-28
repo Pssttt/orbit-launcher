@@ -12,4 +12,8 @@
     <string name="manage_apps">Show / hide apps</string>
     <string name="edit_categories">Edit categories</string>
     <string name="appearance">Appearance</string>
+    <string name="clear_memory">Clear from memory</string>
+    <string name="uninstall">Uninstall</string>
+    <string name="free_memory">Free up memory</string>
+    <string name="screensaver">Screensaver</string>
 </resources>

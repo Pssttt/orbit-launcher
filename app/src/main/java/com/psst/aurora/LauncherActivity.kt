@@ -10,6 +10,8 @@ import android.graphics.BitmapFactory
 import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
@@ -42,6 +44,10 @@ class LauncherActivity : AppCompatActivity() {
     private var cachedApps: List<AppEntry>? = null
     private var appliedWallpaper: String? = "__none__"
     private var createdFontScale = 1.0f
+
+    private val idleHandler = Handler(Looper.getMainLooper())
+    private val showSaver = Runnable { showScreensaver() }
+    private val idleTimeoutMs = 180_000L
 
     override fun attachBaseContext(newBase: Context) {
         val fs = ConfigStore(newBase).fontScale
@@ -97,11 +103,53 @@ class LauncherActivity : AppCompatActivity() {
         binding.root.setBackgroundColor(config.baseColor)
         applyWallpaper()
         loadAndRender(animate = false)   // cheap (cached) — refreshes recents/settings
+        resetIdle()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        idleHandler.removeCallbacks(showSaver)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        idleHandler.removeCallbacks(showSaver)
         runCatching { unregisterReceiver(pkgReceiver) }
+    }
+
+    // ---------- screensaver ----------
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        resetIdle()
+    }
+
+    private fun resetIdle() {
+        idleHandler.removeCallbacks(showSaver)
+        if (binding.screensaver.visibility == View.VISIBLE) hideScreensaver()
+        if (config.screensaver) idleHandler.postDelayed(showSaver, idleTimeoutMs)
+    }
+
+    private fun showScreensaver() {
+        updateSaverClock()
+        binding.screensaver.apply {
+            alpha = 0f
+            visibility = View.VISIBLE
+            animate().alpha(1f).setDuration(900).start()
+        }
+    }
+
+    private fun hideScreensaver() {
+        binding.screensaver.animate().alpha(0f).setDuration(300).withEndAction {
+            binding.screensaver.visibility = View.GONE
+        }.start()
+    }
+
+    private fun updateSaverClock() {
+        val now = Date()
+        val tf = SimpleDateFormat(if (config.clock24) "HH:mm" else "h:mm", Locale.getDefault())
+        binding.saverClock.text = tf.format(now)
+        binding.saverDate.text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(now)
     }
 
     private fun registerPkgReceiver() {
@@ -226,6 +274,8 @@ class LauncherActivity : AppCompatActivity() {
             getString(R.string.reset_icon),
             getString(R.string.move_category),
             getString(R.string.hide_app),
+            getString(R.string.clear_memory),
+            getString(R.string.uninstall),
             "App info",
             getString(R.string.settings)
         )
@@ -240,11 +290,27 @@ class LauncherActivity : AppCompatActivity() {
                     4 -> { config.clearCustomIcon(app.packageName); loadAndRender(false) }
                     5 -> chooseCategory(app)
                     6 -> { config.setHidden(app.packageName, true); loadAndRender(false) }
-                    7 -> openAppInfo(app.packageName)
-                    8 -> startActivity(Intent(this, SettingsActivity::class.java))
+                    7 -> clearFromMemory(app)
+                    8 -> uninstallApp(app.packageName)
+                    9 -> openAppInfo(app.packageName)
+                    10 -> startActivity(Intent(this, SettingsActivity::class.java))
                 }
             }
             .show()
+    }
+
+    private fun clearFromMemory(app: AppEntry) {
+        runCatching {
+            (getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager)
+                .killBackgroundProcesses(app.packageName)
+        }
+        toast("Cleared ${app.label} from memory")
+    }
+
+    private fun uninstallApp(pkg: String) {
+        runCatching {
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:$pkg")))
+        }.onFailure { toast("Can't uninstall") }
     }
 
     private fun moveApp(app: AppEntry, delta: Int) {
@@ -347,6 +413,7 @@ class LauncherActivity : AppCompatActivity() {
                     val tf = SimpleDateFormat(if (config.clock24) "HH:mm" else "h:mm a", Locale.getDefault())
                     binding.clock.text = tf.format(now)
                     binding.date.text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(now)
+                    if (binding.screensaver.visibility == View.VISIBLE) updateSaverClock()
                 } else {
                     binding.clock.visibility = View.GONE
                     binding.date.visibility = View.GONE
@@ -354,6 +421,19 @@ class LauncherActivity : AppCompatActivity() {
                 delay(15_000)
             }
         }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (binding.screensaver.visibility == View.VISIBLE) {
+            if (event.action == KeyEvent.ACTION_DOWN) resetIdle()  // dismiss + restart timer
+            val passThrough = when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN,
+                KeyEvent.KEYCODE_VOLUME_MUTE, KeyEvent.KEYCODE_POWER -> true
+                else -> false
+            }
+            if (!passThrough) return true  // swallow nav keys so they only dismiss
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
