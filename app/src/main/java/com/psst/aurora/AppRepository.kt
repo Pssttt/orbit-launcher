@@ -2,7 +2,6 @@ package com.psst.aurora
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 
@@ -45,8 +44,10 @@ class AppRepository(private val context: Context) {
         val banner = runCatching { ri.activityInfo.loadBanner(pm) }.getOrNull()
         val icon = runCatching { ri.loadIcon(pm) }.getOrNull()
         val accent = AccentColors.accentFor(pkg, icon)
-        val appInfoCat = runCatching { ri.activityInfo.applicationInfo.category }
-            .getOrDefault(ApplicationInfo.CATEGORY_UNDEFINED)
+        val appInfoCat =
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                runCatching { ri.activityInfo.applicationInfo.category }.getOrDefault(-1)
+            else -1   // ApplicationInfo.category (and CATEGORY_UNDEFINED) require API 26
         val category = DefaultCategories.brandCategory(pkg) ?: DefaultCategories.fromAppInfo(appInfoCat)
 
         map[pkg] = AppEntry(pkg, label, launch, banner, icon, accent, category)
