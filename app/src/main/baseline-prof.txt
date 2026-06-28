@@ -11,6 +11,7 @@ Lcom/psst/aurora/WatchCardAdapter;
 Lcom/psst/aurora/WatchCardAdapter$VH;
 Lcom/psst/aurora/WatchNextRepository;
 Lcom/psst/aurora/ImageLoader;
+Lcom/psst/aurora/Updater;
 Lcom/psst/aurora/WatchItem;
 Lcom/psst/aurora/HomeRow;
 Lcom/psst/aurora/HomeRow$Apps;

@@ -79,6 +79,7 @@ class ConfigStore(context: Context) {
     var useGradient: Boolean = true;  private set   // true = Aurora gradient, false = solid baseColor
     var fontScale: Float = 1.0f;  private set       // 0.9 .. 1.2
     var screensaver: Boolean = true;  private set   // ambient clock after idle
+    var lastUpdateCheck: Long = 0L;  private set    // epoch millis of last self-update check
 
     companion object { const val MAX_RECENTS = 8 }
 
@@ -109,6 +110,7 @@ class ConfigStore(context: Context) {
             useGradient = r.optBoolean("useGradient", true)
             fontScale = r.optDouble("fontScale", 1.0).toFloat()
             screensaver = r.optBoolean("screensaver", true)
+            lastUpdateCheck = r.optLong("lastUpdateCheck", 0L)
         }
     }
 
@@ -131,6 +133,7 @@ class ConfigStore(context: Context) {
             r.put("useGradient", useGradient)
             r.put("fontScale", fontScale.toDouble())
             r.put("screensaver", screensaver)
+            r.put("lastUpdateCheck", lastUpdateCheck)
             file.writeText(r.toString())
         }
     }
@@ -200,4 +203,5 @@ class ConfigStore(context: Context) {
     fun useAuroraGradient() { useGradient = true; save() }
     fun setFontScale(v: Float) { fontScale = v; save() }
     fun setScreensaver(v: Boolean) { screensaver = v; save() }
+    fun setLastUpdateCheck(v: Long) { lastUpdateCheck = v; save() }
 }

@@ -40,5 +40,6 @@
         <TextView style="@style/SettingsHeader" android:text="System" />
         <TextView android:id="@+id/btnFreeMemory" style="@style/SettingsItem" android:text="@string/free_memory" />
         <TextView android:id="@+id/btnScreensaver" style="@style/SettingsItem" android:text="@string/screensaver" />
+        <TextView android:id="@+id/btnCheckUpdates" style="@style/SettingsItem" android:text="@string/check_updates" />
     </LinearLayout>
 </ScrollView>

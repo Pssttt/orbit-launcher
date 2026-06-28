@@ -68,6 +68,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.btnScreensaver.setOnClickListener {
             pick("Screensaver", arrayOf("On (after 3 min idle)", "Off")) { config.setScreensaver(it == 0) }
         }
+        binding.btnCheckUpdates.setOnClickListener { Updater.promptIfAvailable(this, manual = true) }
 
         binding.btnAccent.requestFocus()
     }

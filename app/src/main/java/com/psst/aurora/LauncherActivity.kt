@@ -93,6 +93,14 @@ class LauncherActivity : AppCompatActivity() {
         startKenBurns()
         registerPkgReceiver()
         loadAndRender(animate = true)
+        maybeCheckForUpdates()
+    }
+
+    private fun maybeCheckForUpdates() {
+        val now = System.currentTimeMillis()
+        if (now - config.lastUpdateCheck < 12 * 3600_000L) return
+        config.setLastUpdateCheck(now)
+        Updater.promptIfAvailable(this, manual = false)
     }
 
     override fun onResume() {

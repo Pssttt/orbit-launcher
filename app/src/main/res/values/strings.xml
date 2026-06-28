@@ -16,4 +16,5 @@
     <string name="uninstall">Uninstall</string>
     <string name="free_memory">Free up memory</string>
     <string name="screensaver">Screensaver</string>
+    <string name="check_updates">Check for updates</string>
 </resources>
