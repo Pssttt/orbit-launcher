@@ -1,5 +1,13 @@
 # Orbit
 
+This branch also includes **TV Home**, the customized CleanYourTV launcher now used
+on the Sony BRAVIA. It keeps the six-app dock, Scenes wallpapers, reduced motion,
+and enlarged Orbit banners. The original Orbit app remains in `app/` and TV Home
+builds separately from `tvhome/`.
+
+See [TV Home setup, themes and installation](tvhome/README.md). The original
+Orbit release workflow still publishes only Orbit; CI builds both launchers.
+
 A custom, native Android TV launcher — built lightweight for older hardware (tested on a 2018 Sony Bravia, Android 9, 2 GB RAM, armeabi-v7a).
 
 ## Features
@@ -23,8 +31,8 @@ Designed to stay smooth on weak GPUs: GPU-cheap transforms only, no runtime blur
 ## Build
 
 ```bash
-./gradlew assembleDebug          # debug APK -> app/build/outputs/apk/debug/
-./gradlew assembleRelease        # release (set AURORA_KEYSTORE/AURORA_KS_PASS/AURORA_KEY_ALIAS/AURORA_KEY_PASS env vars to sign)
+./gradlew :app:assembleDebug     # original Orbit -> app/build/outputs/apk/debug/
+./gradlew :app:assembleRelease   # original Orbit (set AURORA_KEYSTORE/AURORA_KS_PASS/AURORA_KEY_ALIAS/AURORA_KEY_PASS env vars to sign)
 ```
 
 Install and set as the home launcher:

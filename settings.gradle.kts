@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Aurora"
 include(":app")
+include(":tvhome")

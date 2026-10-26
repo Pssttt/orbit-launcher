@@ -6,6 +6,13 @@ Guidance for working in this repository.
 
 **Orbit** — a custom, native Android TV launcher built for low-end hardware (a 2018 Sony Bravia: Android 9 / API 28, 2 GB RAM, armeabi-v7a). Performance on a weak GPU is the overriding constraint.
 
+The migration branch adds `tvhome/`, a separately buildable Java CleanYourTV module
+with application ID `com.gathin.tvhome`. The original Orbit app and its package identity
+remain in `app/`. See `tvhome/README.md` for installation and `tvhome/UPSTREAM.md` for
+provenance. Personalized themes are in `themes/`; upstream theme tools are in `tools/`.
+Keep signing keys and TV maintenance backups outside Git. Test the new module with
+`./gradlew :tvhome:testReleaseUnitTest :tvhome:lintRelease :tvhome:assembleRelease`.
+
 ## Key facts
 
 - **Language/UI:** Kotlin + AndroidX Views + RecyclerView. **No Jetpack Compose** — deliberately, for performance on old TVs. Don't introduce Compose.
@@ -28,8 +35,8 @@ Guidance for working in this repository.
 ## Build & deploy
 
 ```bash
-./gradlew assembleDebug        # app/build/outputs/apk/debug/
-./gradlew assembleRelease      # needs signing env vars (below)
+./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/
+./gradlew :app:assembleRelease # needs signing env vars (below)
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell cmd package set-home-activity com.psst.orbit/com.psst.aurora.LauncherActivity
 ```
@@ -42,7 +49,7 @@ AGP ships an x86-64 `aapt2` that can't run on ARM64. To build there: install `qe
 
 ## CI/CD
 
-- `.github/workflows/android.yml` — push/PR to `main`: lint + debug APK (uploaded as artifact).
+- `.github/workflows/android.yml` — pushes to `main`/`migration/cleanyourtv`, PRs to `main`: original Orbit lint/debug APK plus TV Home release tests/lint/APK; both APKs uploaded as artifacts.
 - `.github/workflows/release.yml` — push a `v*` tag: builds a signed release APK from secrets and attaches it to a GitHub Release.
 
 ## Conventions

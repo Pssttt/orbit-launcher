@@ -38,7 +38,7 @@ jobs:
           AURORA_KS_PASS: ${{ secrets.AURORA_KS_PASS }}
           AURORA_KEY_ALIAS: ${{ secrets.AURORA_KEY_ALIAS }}
           AURORA_KEY_PASS: ${{ secrets.AURORA_KEY_PASS }}
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Stage APK
         run: |

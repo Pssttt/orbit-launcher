@@ -1,0 +1,56 @@
+{
+  "columns": 6,
+  "dock_apps": [
+    "org.smarttube.beta",
+    "com.stremio.one",
+    "org.jellyfin.androidtv",
+    "com.sportzx.live",
+    "com.github.razenfr.xtratv",
+    "io.github.viren070.aiostreams"
+  ],
+  "hidden_apps": [
+    "com.mediatek.wwtv.tvcenter",
+    "com.mitv.gallery",
+    "com.sony.dtv.tvx",
+    "com.sony.dtv.tvxlauncher.programguide"
+  ],
+  "app_labels": [
+    "org.smarttube.beta=YouTube"
+  ],
+  "live_tv_package": "com.sony.dtv.tvx",
+  "reduced_motion": true,
+  "focus_overshoot": false,
+  "animations": true,
+  "advanced_effects": false,
+  "cinematic_home": false,
+  "fade_rows": false,
+  "background_color": "#08080C",
+  "wallpaper": true,
+  "ambient_glow": false,
+  "show_stats": false,
+  "app_library": true,
+  "library_button": true,
+  "tile_menu": true,
+  "home_idle_clock_minutes": 10,
+  "app_banners": [
+    "org.smarttube.beta=banner_youtube_large",
+    "com.stremio.one=banner_stremio_large",
+    "org.jellyfin.androidtv=banner_jellyfin_large",
+    "org.videolan.vlc=banner_vlc_large",
+    "com.esaba.downloader=banner_downloader_large",
+    "org.localsend.localsend_app=banner_localsend_large",
+    "com.gaditek.purevpnics=banner_purevpn_large",
+    "com.netflix.ninja=banner_netflix_large",
+    "com.rblive.app=banner_rblive_large",
+    "app.cricfy.tv=banner_cricfy_large",
+    "com.phlox.tvwebbrowser=banner_browser_large"
+  ],
+  "wallpaper_rotation_minutes": 60,
+  "wallpaper_order": "sequential",
+  "wallpaper_true_color": true,
+  "wallpaper_dim": 15,
+  "dock_glass": true,
+  "dock_opacity": 70,
+  "icon_only_buttons": true,
+  "icon_only_inputs": true
+}

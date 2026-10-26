@@ -26,3 +26,11 @@ keystore.properties
 
 # OS
 .DS_Store
+
+# Local TV maintenance and Python tools
+tools/venv/
+tools/adbkey/
+__pycache__/
+backup/
+shots/
+*.log
