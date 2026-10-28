@@ -78,6 +78,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int ambient;
         /** uniform_tiles card fill, top and bottom colour; null until sampled from the icon. */
         int[] backdrop;
+        int category = android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED;
 
         Entry(String label, ComponentName component, Drawable banner, Drawable icon) {
             this(APP, label, component, banner, icon, null, 0);
@@ -305,6 +306,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             } else {
                 fresh.add(new Entry(label, component, banner, icon));
             }
+            fresh.get(fresh.size() - 1).category = ri.activityInfo.applicationInfo.category;
         }
         Collections.sort(fresh, (a, b) -> {
             // The owner's own order first; tiles it does not know (new installs) follow by the rule below.
@@ -529,7 +531,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         try {
             ctx.startActivity(i);
-            if (cinematic) LastOpened.record(ctx, e.pkg);
+            LastOpened.record(ctx, e.pkg);
             if (advancedEffects && !reducedMotion && ctx instanceof Activity) {
                 ((Activity) ctx).overridePendingTransition(R.anim.app_open_enter, R.anim.app_open_exit);
             }
@@ -544,6 +546,12 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     int appCount() { return items.size(); }
+
+    Entry entryAt(int position) { return items.get(position); }
+
+    void launchAt(int position) {
+        if (position >= 0 && position < items.size() && items.get(position).kind != Entry.EMPTY) launch(items.get(position));
+    }
 
     boolean isLibraryAt(int position) { return showLibrary && position == items.size(); }
 

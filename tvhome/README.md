@@ -5,6 +5,15 @@ platform running Android 9 with 2 GB RAM. The original Kotlin Orbit implementati
 remains in `app/`. TV Home retains application ID `com.gathin.tvhome`, so it can
 update the existing TV installation without replacing Orbit or its private data.
 
+The greeting, clock, date, wallpaper and top controls retain CleanYourTV's design.
+The app area uses Orbit-style horizontal shelves: Favorites, Recent, then categories.
+Cards are 240×135 dp, with a colored focus ring and brief, interruptible scale/lift
+feedback. Reduced motion uses a smaller scale, no lift and immediate scrolling.
+The shelves leave a 64 dp gap below the header. Apps without banners use a horizontal
+icon-and-name card, including SportzX.
+Animations stop in the background and nothing animates continuously on idle Home.
+Recent contains up to six apps opened from these shelves; it does not read system usage.
+
 ## Build
 
 Use JDK 17, Android SDK platform 34 and build-tools 34.0.0. Set `ANDROID_HOME` or
@@ -55,13 +64,13 @@ When finished, turn USB/network debugging off in the TV's Developer options.
 
 ## Themes and artwork
 
-All three themes keep the same six favorites, in order: SmartTube (YouTube),
+All three themes default to six favorites, in order: SmartTube (YouTube),
 Stremio, Jellyfin, SportzX, Xtra TV, and AIOStreams.
 
 | Folder | Appearance |
 |---|---|
-| `themes/sony-scenes` | Fourteen static illustrated landscapes, changing once an hour; translucent dock and icon buttons |
-| `themes/sony-glass` | Static navy/teal wallpaper, translucent dock and app-colored focus |
+| `themes/sony-scenes` | Fourteen static illustrated landscapes, changing once an hour, with icon buttons |
+| `themes/sony-glass` | Static navy/teal wallpaper and app-colored focus |
 | `themes/sony-light` | Plain dark background |
 
 Reduced motion is enabled; advanced effects, row fades and continuous Home stats
@@ -69,16 +78,19 @@ are off. The app library and tile menus are available. An idle clock starts afte
 ten minutes on Home. Themes only change appearance and launcher configuration.
 
 Edit a theme's `config.json`, then apply it with `tools/theme.sh`. `dock_apps` sets
-the favorites and their order; keep `columns` equal to the number of visible dock
-slots. Hold OK on a tile for its menu or on Settings for launcher ordering tools.
+the default favorites and their order; an order saved on the TV takes precedence.
+`columns` controls the existing ordering editor, which returns to shelves when done.
+Left/Right stay inside a shelf, Up/Down change shelves and remember their last tile,
+and Up from Favorites goes to the top controls. Hold OK on a tile for its menu or
+on Settings for launcher ordering tools. The app library remains available.
 The [upstream configuration reference](https://github.com/Gathin23/cleanyourtv/blob/b06ab21105c49900cb1ed76b24414dba1e21d0db/themes/README.md)
 documents other available keys.
 
 Eleven original Orbit PNG banners are bundled in `tvhome/src/main/res/drawable-nodpi`.
-The `app_banners` maps select native `banner_*_large.xml` wrappers that enlarge most
-artwork by 40%, and Downloader by 14% to keep its longer label visible. Replace a
-PNG and rebuild to change it; there is no on-TV custom-image picker. Other apps use
-their own artwork.
+The themes now select the original artwork scale because the shelf cards are larger.
+The earlier `banner_*_large.xml` wrappers remain available for compact layouts.
+Replace a PNG and rebuild to change it; there is no on-TV custom-image picker.
+Other apps use their own artwork.
 
 ## Return to Orbit
 

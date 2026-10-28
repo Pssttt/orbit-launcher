@@ -12,6 +12,11 @@ remain in `app/`. See `tvhome/README.md` for installation and `tvhome/UPSTREAM.m
 provenance. Personalized themes are in `themes/`; upstream theme tools are in `tools/`.
 Keep signing keys and TV maintenance backups outside Git. Test the new module with
 `./gradlew :tvhome:testReleaseUnitTest :tvhome:lintRelease :tvhome:assembleRelease`.
+TV Home's app area uses `OrbitRows` (pure grouping rules) and `OrbitRowsView`
+(recycled horizontal shelves), backed by the existing `AppAdapter`. The header and
+wallpaper remain in `MainActivity`; the original grid is retained for ordering only.
+Preserve stable app-key lookup in callbacks, focus memory, app-library/menu behavior,
+background animation cancellation and memory-pressure release when editing the shelves.
 
 ## Key facts
 

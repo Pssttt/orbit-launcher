@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="row_favorites">Favorites</string>
+    <string name="row_recent">Recent</string>
+    <string name="row_streaming">Streaming</string>
+    <string name="row_media">Media</string>
+    <string name="row_music">Music</string>
+    <string name="row_games">Games</string>
+    <string name="row_social">Social</string>
+    <string name="row_news">News</string>
+    <string name="row_tools">Tools</string>
+    <string name="row_apps">Apps</string>
+</resources>

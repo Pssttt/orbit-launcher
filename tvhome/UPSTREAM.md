@@ -15,6 +15,10 @@ Revision: `b06ab21105c49900cb1ed76b24414dba1e21d0db`
 Local changes: integrate the launcher as the `tvhome` Gradle module, adapt the
 installer's build and APK paths, configure Sony inputs and a six-app dock, provide
 three personalized themes, and add native XML wrappers for larger banner artwork.
-The upstream launcher Java code and unit tests are unchanged.
+The current app shelves use `OrbitRows` for grouping and `OrbitRowsView` for the
+recycled row/card views, integrated into `MainActivity`. `AppAdapter` still owns app
+discovery, validated launching and ordering; it now exposes its entries and records
+successful Home launches for Recent. These are local Java changes. The original
+upstream unit tests are retained, with additional row-grouping tests.
 
 Copyright (c) 2026 Gathin. See [LICENSE](LICENSE).

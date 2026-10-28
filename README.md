@@ -1,8 +1,9 @@
 # Orbit
 
 This branch also includes **TV Home**, the customized CleanYourTV launcher now used
-on the Sony BRAVIA. It keeps the six-app dock, Scenes wallpapers, reduced motion,
-and enlarged Orbit banners. The original Orbit app remains in `app/` and TV Home
+on the Sony BRAVIA. It combines the greeting, clock and Scenes wallpapers with
+Orbit-style app shelves, six favorites, custom banners and reduced motion.
+The original Orbit app remains in `app/` and TV Home
 builds separately from `tvhome/`.
 
 See [TV Home setup, themes and installation](tvhome/README.md). The original

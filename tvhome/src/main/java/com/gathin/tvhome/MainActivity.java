@@ -138,6 +138,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private AppAdapter adapter;
     private RecyclerView grid;
+    private OrbitRowsView orbitRows;
     private FrameLayout root;
     private WallpaperPlayer wallpaperPlayer;
     private GlassView glass;
@@ -783,7 +784,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
-                focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
+                focusTile(appRowsVisible() || singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
             }
             int firstButton = btnInputs.getVisibility() == View.VISIBLE ? R.id.btnInputs : firstTopButton().getId();
@@ -841,6 +842,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         // Not after recreate(): the launch intent survives it and would open the settings again.
         if (savedInstanceState == null && !openLauncherSettingsIfAsked(getIntent())) openInputsIfAsked(getIntent());
+        orbitRows = new OrbitRowsView(this, adapter, this, () -> firstTopButton().requestFocus(), animations, reducedMotion);
+        ((ViewGroup) grid.getParent()).addView(orbitRows, new FrameLayout.LayoutParams(-1, -1));
+        showAppRows(true);
+    }
+
+    private boolean appRowsVisible() { return orbitRows != null && orbitRows.getVisibility() == View.VISIBLE; }
+
+    private void showAppRows(boolean visible) {
+        if (orbitRows == null) return;
+        orbitRows.setVisibility(visible ? View.VISIBLE : View.GONE);
+        grid.setVisibility(visible ? View.GONE : View.VISIBLE);
+        hero.setVisibility(visible ? View.GONE : View.VISIBLE);
+        hideGlass();
+        hideHero();
     }
 
     /**
@@ -912,6 +927,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openInputsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
         grid.scrollToPosition(0);
+        if (orbitRows != null) orbitRows.resetToTop();
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
         if (stopped) {
@@ -1044,11 +1060,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         RecyclerView.ViewHolder footer = grid.findViewHolderForAdapterPosition(adapter.appCount());
         final boolean restoreLibrary = adapter.isLibraryAt(adapter.appCount()) && footer != null
                 && footer.itemView.findViewById(R.id.btnLibrary) != null
-                && footer.itemView.findViewById(R.id.btnLibrary).hasFocus();
+                && footer.itemView.findViewById(R.id.btnLibrary).hasFocus()
+                || orbitRows != null && orbitRows.libraryHasFocus();
         // Capture the app before rebinding can move focus and overwrite its key.
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
-        final boolean restoreFocus = appLibrary == null && (animate || grid.hasFocus());
+        final boolean restoreFocus = appLibrary == null && (animate || grid.hasFocus()
+                || orbitRows != null && orbitRows.hasFocus());
         if (restoreFocus) {
             glassShown = false;
             glass.setAlpha(0f);
@@ -1059,6 +1077,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             heroArt.setAlpha(0f);
         }
         if (rebuild) reloadTiles();
+        else if (orbitRows != null) orbitRows.reload();
         if (animate && entrance && animations && !reducedMotion) {
             grid.scheduleLayoutAnimation();
             // A rebuild redraws the grid anyway; without one the entrance needs a draw to start.
@@ -1113,6 +1132,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         cards = moduleCards ? CardFeature.run(() -> Cards.discover(this, hiddenApps,
                 () -> Cards.load(Cards.storeFile(this)), leanback), none) : none;
         adapter.reload(cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none), leanback);
+        if (orbitRows != null) orbitRows.reload();
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
@@ -1171,6 +1191,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStop() {
         super.onStop();
+        if (orbitRows != null) orbitRows.stopAnimations();
         started = false;
         unregisterReceiver(timeReceiver);
         handler.removeCallbacks(clockCheck);
@@ -1190,6 +1211,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // process in the foreground; never blank the screen the owner is looking at.
         if (!MemoryTrimPolicy.shouldRelease(level, started)) return;
         adapter.clear();
+        if (orbitRows != null) orbitRows.release();
         // Detach the adapter too: with Home stopped no layout pass runs, so the tile views (and the bitmaps
         // they hold) would stay attached until Home comes back. setAdapter(null) recycles them now.
         grid.setAdapter(null);
@@ -1318,6 +1340,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Adapter position of the focused tile, or -1 when focus is not on a tile. */
     private int focusedTilePosition() {
+        if (appRowsVisible()) return orbitRows.focusedPosition();
         View f = getCurrentFocus();
         if (f == null || f.getId() != R.id.card || !(f.getParent() instanceof View)) return -1;
         return grid.getChildAdapterPosition((View) f.getParent());
@@ -1337,6 +1360,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** The start shared by reorder and edit-dock mode. False when there is nothing to move. */
     private boolean beginReorder() {
         if (adapter.movableCount() < 2) return false;
+        showAppRows(false);
         // Before the reload below: once it has dropped the empty slots, the dock row also shows grid apps.
         dockInSession = new HashSet<>();
         dockedAtStart = adapter.dockFilled();
@@ -1511,6 +1535,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         if (fillDockLeavesSlots) reloadTiles();   // the empty dock slots left out while reordering come back
+        if (orbitRows != null) {
+            boolean returnToApps = grid.hasFocus();
+            orbitRows.reload();
+            showAppRows(true);
+            if (returnToApps) orbitRows.post(() -> focusTile(lastFocused));
+        }
     }
 
     /**
@@ -1625,6 +1655,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     public void onTileFocused(int position, View card) {
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
+        if (appRowsVisible()) return;
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
         // would be sized to 2*pad. Run again once the tile is laid out.
         if (card.getWidth() == 0) {
@@ -1706,6 +1737,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** Refits the glass to the focused holder once the grid layout and tile dimensions settle. */
     private void refitGlass() {
+        if (appRowsVisible()) return;
         if (isDestroyed() || adapter.appCount() == 0 || libraryFocusPending) return;
         int pos = Math.max(0, Math.min(lastFocused, adapter.appCount() - 1));
         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
@@ -2366,12 +2398,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     @Override public void onLibraryUp() {
+        if (appRowsVisible()) { orbitRows.focusLastRow(); return; }
         if (adapter.appCount() == 0) { firstTopButton().requestFocus(); return; }
         int lastRow = ((adapter.appCount() - 1) / COLUMNS) * COLUMNS;
         focusTile(Math.min(lastRow + lastFocused % COLUMNS, adapter.appCount() - 1));
     }
 
     private void focusLibrary() {
+        if (appRowsVisible()) {
+            libraryFocusPending = false;
+            if (orbitRows.focusLibrary()) return;
+            if (btnLibraryTop.getVisibility() == View.VISIBLE) btnLibraryTop.requestFocus();
+            else orbitRows.focusPosition(lastFocused);
+            return;
+        }
         cancelPendingFocusScroll();
         int position = adapter.appCount();
         if (!adapter.isLibraryAt(position)) return;
@@ -2420,12 +2460,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void focusTile(int position) {
         libraryFocusPending = false;
         cancelPendingFocusScroll();
+        if (appRowsVisible()) { orbitRows.focusPosition(position); return; }
         if (adapter.appCount() == 0) {
             if (adapter.isLibraryAt(0)) focusLibrary();
             else firstTopButton().requestFocus();
             return;
         }
         final int pos = adapter.focusablePosition(Math.max(0, Math.min(position, adapter.appCount() - 1)));
+        // Revealing the ordering grid needs a layout before a visible tile can take focus.
+        if (!grid.isLaidOut() || grid.isLayoutRequested()) {
+            grid.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override public void onGlobalLayout() {
+                    grid.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    if (!isDestroyed() && !appRowsVisible()) focusTile(pos);
+                }
+            });
+            return;
+        }
         RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
         if (vh != null) {
             View card = vh.itemView.findViewById(R.id.card);
